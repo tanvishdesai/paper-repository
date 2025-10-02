@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import fs from "fs";
 import path from "path";
 
@@ -23,11 +24,11 @@ async function verifyApiKey(apiKey: string) {
 }
 
 // Log API usage
-async function logApiUsage(apiKeyId: string, userId: string, endpoint: string, method: string, statusCode: number) {
+async function logApiUsage(apiKeyId: string) {
   // In production, you'd want to use a Convex mutation here
   // For now, we'll just update the last used timestamp
   try {
-    await convex.mutation(api.apiKeys.updateLastUsed, { keyId: apiKeyId as any });
+    await convex.mutation(api.apiKeys.updateLastUsed, { keyId: apiKeyId as Id<"apiKeys"> });
   } catch (error) {
     console.error("Failed to log API usage:", error);
   }
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     // Read questions data
     const dataDir = path.join(process.cwd(), "public", "data");
-    let allQuestions: any[] = [];
+    let allQuestions: Record<string, unknown>[] = [];
 
     if (subject) {
       // Get specific subject
@@ -96,29 +97,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply filters
-    let filteredQuestions = allQuestions.filter((q: any) => {
+    const filteredQuestions = allQuestions.filter((q: Record<string, unknown>) => {
       const matchesYear = !year || q.year?.toString() === year;
       const matchesMarks = !marks || q.marks?.toString() === marks;
       const matchesType = !type || q.theoretical_practical === type;
-      const matchesSearch = !search || 
-        q.question_text.toLowerCase().includes(search.toLowerCase()) ||
-        q.subtopic.toLowerCase().includes(search.toLowerCase()) ||
-        q.chapter.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !search ||
+        (q.question_text as string).toLowerCase().includes(search.toLowerCase()) ||
+        (q.subtopic as string).toLowerCase().includes(search.toLowerCase()) ||
+        (q.chapter as string).toLowerCase().includes(search.toLowerCase());
 
       return matchesYear && matchesMarks && matchesType && matchesSearch;
     });
 
     // Sort questions
-    filteredQuestions.sort((a: any, b: any) => {
+    filteredQuestions.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
       switch (sortBy) {
         case "year-desc":
-          return (b.year ?? 0) - (a.year ?? 0);
+          return (b.year as number ?? 0) - (a.year as number ?? 0);
         case "year-asc":
-          return (a.year ?? 0) - (b.year ?? 0);
+          return (a.year as number ?? 0) - (b.year as number ?? 0);
         case "marks-desc":
-          return (b.marks ?? 0) - (a.marks ?? 0);
+          return (b.marks as number ?? 0) - (a.marks as number ?? 0);
         case "marks-asc":
-          return (a.marks ?? 0) - (b.marks ?? 0);
+          return (a.marks as number ?? 0) - (b.marks as number ?? 0);
         default:
           return 0;
       }
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
     const paginatedQuestions = filteredQuestions.slice(offset, offset + limit);
 
     // Log usage
-    await logApiUsage(keyData.id, keyData.userId, "/api/v1/questions", "GET", 200);
+    await logApiUsage(keyData.id);
 
     // Return response
     return NextResponse.json({

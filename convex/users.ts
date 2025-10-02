@@ -1,4 +1,3 @@
-import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 // Get or create user from Clerk authentication

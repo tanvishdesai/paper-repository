@@ -4,34 +4,26 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { 
-  ArrowLeft, 
-  BookOpen, 
-  Key, 
-  Copy, 
-  Trash2, 
-  Plus, 
-  Eye, 
+import {
+  ArrowLeft,
+  BookOpen,
+  Key,
+  Copy,
+  Trash2,
+  Plus,
+  Eye,
   EyeOff,
   CheckCircle2,
   AlertCircle,
   Power
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 export default function ApiKeysPage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -86,7 +78,7 @@ export default function ApiKeysPage() {
     }
 
     try {
-      await revokeKey({ keyId: keyId as any });
+      await revokeKey({ keyId: keyId as Id<"apiKeys"> });
     } catch (error) {
       console.error("Failed to revoke API key:", error);
       alert("Failed to revoke API key. Please try again.");
@@ -95,7 +87,7 @@ export default function ApiKeysPage() {
 
   const handleToggleActive = async (keyId: string) => {
     try {
-      await toggleActive({ keyId: keyId as any });
+      await toggleActive({ keyId: keyId as Id<"apiKeys"> });
     } catch (error) {
       console.error("Failed to toggle API key:", error);
       alert("Failed to toggle API key. Please try again.");
@@ -234,7 +226,7 @@ export default function ApiKeysPage() {
                 API Key Generated Successfully
               </CardTitle>
               <CardDescription>
-                <strong>Important:</strong> Copy this key now. For security reasons, it won't be shown again.
+                <strong>Important:</strong> Copy this key now. For security reasons, it won&apos;t be shown again.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -270,7 +262,7 @@ export default function ApiKeysPage() {
                 onClick={() => setGeneratedKey(null)}
                 className="mt-4"
               >
-                I've saved my key
+                I&apos;ve saved my key
               </Button>
             </CardContent>
           </Card>

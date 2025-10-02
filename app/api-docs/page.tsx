@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BookOpen, Key, Code, Terminal } from "lucide-react";
+import { ArrowLeft, Key, Code, Terminal } from "lucide-react";
 
 export default function ApiDocsPage() {
   return (
@@ -163,7 +163,7 @@ export default function ApiDocsPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex gap-2">
                     <code className="bg-muted px-2 py-1 rounded">subject</code>
-                    <span className="text-muted-foreground">Filter by subject name (e.g., "Algorithms")</span>
+                    <span className="text-muted-foreground">Filter by subject name (e.g., &quot;Algorithms&quot;)</span>
                   </div>
                   <div className="flex gap-2">
                     <code className="bg-muted px-2 py-1 rounded">year</code>

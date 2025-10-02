@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Question } from "@/types/question";
 import { subjects } from "@/lib/subjects";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +64,7 @@ export default function QuestionsPage() {
 
   // Filter and sort questions
   const filteredQuestions = useMemo(() => {
-    let filtered = questions.filter((q) => {
+    const filtered = questions.filter((q) => {
       const matchesSearch =
         searchQuery === "" ||
         q.question_text.toLowerCase().includes(searchQuery.toLowerCase()) ||

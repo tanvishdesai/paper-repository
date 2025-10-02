@@ -1,7 +1,5 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import fs from "fs";
-import path from "path";
 
 // This is a helper to read JSON files
 // In production, you'd want to import these into Convex database
@@ -41,7 +39,7 @@ export const getSubjectQuestions = query({
 
 export const getAllSubjects = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async () => {
     // Return list of available subjects
     const subjects = [
       "Algorithms",

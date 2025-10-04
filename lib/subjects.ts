@@ -8,13 +8,13 @@ export const subjects: SubjectData[] = [
     description: "Sorting, searching, graph algorithms, and complexity analysis"
   },
   {
-    name: "Data Structures",
+    name: "Programming and Data Structures",
     fileName: "Programming_and_Data_Structures.json",
     icon: "🗂️",
     description: "Arrays, trees, graphs, stacks, queues, and linked lists"
   },
   {
-    name: "Operating Systems",
+    name: "Operating System",
     fileName: "Operating_System.json",
     icon: "💻",
     description: "Process management, memory management, and file systems"
@@ -32,7 +32,7 @@ export const subjects: SubjectData[] = [
     description: "OSI model, TCP/IP, routing, and network security"
   },
   {
-    name: "Computer Organization",
+    name: "Computer Organization and Architecture",
     fileName: "Computer_Organization_and_Architecture.json",
     icon: "🖥️",
     description: "CPU design, memory hierarchy, and instruction sets"

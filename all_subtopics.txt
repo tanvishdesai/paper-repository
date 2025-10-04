@@ -1,0 +1,322 @@
+ALL SUBTOPICS EXTRACTED FROM QUESTION DATA
+==================================================
+
+  1. 3D Visualization
+  2. ALU, data-path and control unit
+  3. ALU, data-path and control unit.
+  4. ALU, data-path and control unit. approximate
+  5. Algebra
+  6. Algorithm design techniques: dynamic programming
+  7. Algorithm design techniques: greedy, dynamic programming and divide-and-conquer
+  8. Algorithm design techniques: greedy, dynamic programming and divide-and-conquer.
+  9. Analogies
+ 10. Analogy
+ 11. Application layer protocols: DNS, SMTP, HTTP, FTP, Email
+ 12. Application layer protocols: DNS, SMTP, HTTP, FTP, Email.
+ 13. Arithmetic
+ 14. Arrangement & Puzzles
+ 15. Arrays
+ 16. Arrays, stacks, queues, linked lists
+ 17. Arrays, stacks, queues, linked lists, trees, binary search trees, binary heaps, graphs
+ 18. Asymptotic worst case time and space complexity
+ 19. Asymptotic worst case time and space complexity.
+ 20. Basics of IP support protocols (ARP, DHCP, ICMP)
+ 21. Basics of IP support protocols (ARP, DHCP, ICMP), Network Address Translation (NAT);
+ 22. Basics of packet, circuit and virtual circuit-switching
+ 23. Boolean algebra
+ 24. Boolean algebra.
+ 25. CPU and I/O scheduling
+ 26. CPU and I/O scheduling.
+ 27. Coding and Decoding
+ 28. Combinational and sequential circuits
+ 29. Combinational and sequential circuits.
+ 30. Combinatorics: counting
+ 31. Combinatorics: counting, recurrence relations, generating functions
+ 32. Combinatorics: counting, recurrence relations, generating functions (approximate)
+ 33. Combinatorics: counting, recurrence relations, generating functions.
+ 34. Combinatorics: recurrence relations
+ 35. Concept of layering: OSI and TCP/IP Protocol Stacks
+ 36. Concept of layering: OSI and TCP/IP Protocol Stacks; Basics of packet, circuit and virtual circuit-switching
+ 37. Conditional probability and Bayes theorem
+ 38. Conditional probability and Bayes theorem.
+ 39. Conditional probability and Bayes theorem. approximate
+ 40. Context-free grammars and push-down automata
+ 41. Context-free grammars and push-down automata.
+ 42. Context-free languages, pumping lemma
+ 43. Data Interpretation
+ 44. Data Sufficiency
+ 45. Data flow analyses: constant propagation, liveness analysis, common sub expression elimination
+ 46. Data flow analyses: constant propagation, liveness analysis, common sub expression elimination.
+ 47. Data flow analyses: liveness analysis
+ 48. Data link layer: framing, error detection
+ 49. Data link layer: framing, error detection, Medium Access Control, Ethernet bridging
+ 50. Data link layer: framing, error detection, Medium Access Control, Ethernet bridging.
+ 51. Data link layer: framing, error detection, Medium Access Control, Ethernet bridging;
+ 52. Data link layer: framing, error detection, Medium Access Control, Ethernet bridging; approximate
+ 53. Deadlock
+ 54. Deadlock.
+ 55. ER-model
+ 56. ER-model.
+ 57. File organization, indexing (e.g., B and B+ trees)
+ 58. File organization, indexing (e.g., B and B+ trees).
+ 59. File systems
+ 60. Fill in the Blanks
+ 61. Fragmentation and IP addressing
+ 62. Fragmentation and IP addressing, IPv4
+ 63. Fragmentation and IP addressing, IPv4, CIDR notation
+ 64. Fragmentation and IP addressing, IPv4, CIDR notation, Basics of IP support protocols (ARP, DHCP, ICMP), Network Address Translation (NAT)
+ 65. Functions
+ 66. Geometry
+ 67. Grammar
+ 68. Graph Theory
+ 69. Graph traversals
+ 70. Graph traversals, minimum spanning trees, shortest paths
+ 71. Graph traversals, minimum spanning trees, shortest paths.
+ 72. Graphs: connectivity, matching, colouring
+ 73. Graphs: connectivity, matching, colouring.
+ 74. Groups
+ 75. I/O interface (interrupt and DMA mode)
+ 76. I/O interface (interrupt and DMA mode).
+ 77. I/O scheduling (approximate)
+ 78. IPv4 (approximate)
+ 79. Idioms and Phrases
+ 80. Instruction pipelining
+ 81. Instruction pipelining, pipeline hazards
+ 82. Instruction pipelining, pipeline hazards.
+ 83. Integration
+ 84. Integration.
+ 85. Integrity constraints
+ 86. Integrity constraints, normal forms
+ 87. Integrity constraints, normal forms.
+ 88. Intermediate code generation
+ 89. Intermediate code generation.
+ 90. LU decomposition
+ 91. Lexical analysis
+ 92. Lexical analysis, parsing, syntax-directed translation
+ 93. Lexical analysis, parsing, syntax-directed translation.
+ 94. Limits, continuity and differentiability
+ 95. Limits, continuity and differentiability,
+ 96. Limits, continuity and differentiability, Maxima and minima, Mean value theorem, Integration
+ 97. Limits, continuity and differentiability, Maxima and minima, Mean value theorem, Integration.
+ 98. Local optimization
+ 99. Local optimization, Data flow analyses: constant propagation, liveness analysis, common sub expression elimination.
+100. Logarithms
+101. Logical Inference
+102. Logical Reasoning
+103. Machine instructions and addressing modes
+104. Machine instructions and addressing modes.
+105. Matrices, determinants
+106. Matrices, determinants, system of linear equations
+107. Matrices, determinants, system of linear equations, eigenvalues and eigenvectors, LU decomposition
+108. Matrices, determinants, system of linear equations, eigenvalues and eigenvectors, LU decomposition.
+109. Maxima and minima
+110. Mean value theorem,
+111. Mean, median, mode and standard deviation
+112. Mean, median, mode and standard deviation.
+113. Medium Access Control
+114. Memory hierarchy: cache, main memory and secondary storage
+115. Memory hierarchy: cache, main memory and secondary storage;
+116. Memory hierarchy: cache, main memory and secondary storage; I/O interface (interrupt and DMA mode)
+117. Memory hierarchy: cache, main memory and secondary storage; I/O interface (interrupt and DMA mode).
+118. Memory management and virtual memory
+119. Memory management and virtual memory.
+120. Mensuration
+121. Minimization
+122. Minimization.
+123. Monoids, Groups
+124. Monoids, Groups.
+125. Network Address Translation (NAT)
+126. Number Systems
+127. Number representations and computer arithmetic (fixed and floating point)
+128. Number representations and computer arithmetic (fixed and floating point) (approximate)
+129. Number representations and computer arithmetic (fixed and floating point).
+130. OSI and TCP/IP Protocol Stacks (approximate)
+131. OTHER: Algebra
+132. OTHER: Algebra - Exponents
+133. OTHER: Analogy
+134. OTHER: Arrangements
+135. OTHER: C Memory Model
+136. OTHER: Closure Properties of Formal Languages
+137. OTHER: Complexity Classes (P, NP)
+138. OTHER: Coordinate Geometry
+139. OTHER: Data Interpretation
+140. OTHER: Digital Signature
+141. OTHER: Direction Sense
+142. OTHER: English Grammar - Articles
+143. OTHER: Front-end and Back-end Phases
+144. OTHER: Functions & Graphs
+145. OTHER: Geometry
+146. OTHER: Geometry/Puzzles
+147. OTHER: Grammar
+148. OTHER: Grammar - Homophones
+149. OTHER: Grammar and Ambiguity
+150. OTHER: HTML structure
+151. OTHER: Information representation and technologies
+152. OTHER: Logarithms
+153. OTHER: Logical Deduction
+154. OTHER: Logical Reasoning
+155. OTHER: Logical Reasoning - Blood Relations
+156. OTHER: Loop Invariants
+157. OTHER: Mensuration
+158. OTHER: Network Performance Metrics
+159. OTHER: Newton-Raphson method
+160. OTHER: Number Series
+161. OTHER: Number Systems
+162. OTHER: Number Theory - LCM
+163. OTHER: Number Theory / Cryptography
+164. OTHER: Number Theory / Modular Arithmetic
+165. OTHER: Number Theory/Cryptography
+166. OTHER: Numerical Methods
+167. OTHER: Paper Folding and Cutting
+168. OTHER: Parallel Architectures
+169. OTHER: Percentages
+170. OTHER: Percentages and Ratios
+171. OTHER: Permutations and Combinations
+172. OTHER: Pie Charts
+173. OTHER: Prepositions and Conjunctions
+174. OTHER: Probability
+175. OTHER: Profit and Loss
+176. OTHER: Public Key Cryptography
+177. OTHER: Puzzles
+178. OTHER: Ratio and Proportion
+179. OTHER: Reading Comprehension
+180. OTHER: Sentence Completion
+181. OTHER: Sentence Sequencing
+182. OTHER: Series and Progressions
+183. OTHER: Series and Sequences
+184. OTHER: Set Theory
+185. OTHER: Software Engineering - Coupling
+186. OTHER: Software Engineering - Cyclomatic Complexity
+187. OTHER: Software Engineering - DFD
+188. OTHER: Spatial Visualization
+189. OTHER: Vocabulary
+190. OTHER: Vocabulary (Homonyms)
+191. OTHER: Word Problems
+192. Paper Folding
+193. Paper Folding and Cutting
+194. Parsing
+195. Percentages
+196. Pie Charts
+197. Poisson and binomial distributions
+198. Probability
+199. Programming in C
+200. Programming in C.
+201. Propositional and first order logic
+202. Propositional and first order logic.
+203. Puzzles
+204. Random variables
+205. Random variables, Uniform, normal, exponential, Poisson and binomial distributions
+206. Random variables, Uniform, normal, exponential, Poisson and binomial distributions.
+207. Ratio and Proportion
+208. Reading Comprehension
+209. Recursion
+210. Recursion.
+211. Regular and context-free languages
+212. Regular and context-free languages, pumping lemma
+213. Regular and context-free languages, pumping lemma.
+214. Regular expressions and finite automata
+215. Regular expressions and finite automata.
+216. Relational model: relational algebra
+217. Relational model: relational algebra, tuple calculus
+218. Relational model: relational algebra, tuple calculus, SQL
+219. Relational model: relational algebra, tuple calculus, SQL.
+220. Routing protocols: shortest path, flooding, distance vector and link state routing
+221. Routing protocols: shortest path, flooding, distance vector and link state routing.
+222. Routing protocols: shortest path, flooding, distance vector and link state routing;
+223. Runtime environments
+224. Runtime environments.
+225. SQL
+226. Searching, sorting, hashing
+227. Searching, sorting, hashing.
+228. Sentence Arrangement
+229. Sequences and Series
+230. Set Theory & Venn Diagrams
+231. Sets, relations, functions
+232. Sets, relations, functions, partial orders and lattices
+233. Sets, relations, functions, partial orders and lattices.
+234. Speed, Time and Distance
+235. Symmetry
+236. System calls
+237. System calls, processes, threads
+238. System calls, processes, threads, inter-process communication
+239. System calls, processes, threads, inter-process communication, concurrency and synchronization
+240. System calls, processes, threads, inter-process communication, concurrency and synchronization.
+241. TCP
+242. Transactions and concurrency control
+243. Transactions and concurrency control.
+244. Transformations
+245. Transport layer: flow control and congestion control, UDP, TCP, sockets
+246. Transport layer: flow control and congestion control, UDP, TCP, sockets.
+247. Transport layer: flow control and congestion control, UDP, TCP, sockets;
+248. Turing machines and undecidability
+249. Turing machines and undecidability.
+250. Venn Diagrams
+251. Vocabulary
+252. Vocabulary - Phrasal Verbs
+253. binary heaps
+254. binary heaps, graphs.
+255. binary search trees
+256. cache (approximate)
+257. cache, main memory and secondary storage
+258. common sub expression elimination
+259. concurrency and synchronization
+260. concurrency and synchronization.
+261. distance vector and link state routing
+262. dynamic programming
+263. eigenvalues and eigenvectors
+264. eigenvalues and eigenvectors, LU decomposition.
+265. error detection
+266. error detection (approximate)
+267. exponential, Poisson and binomial distributions
+268. flow control and congestion control
+269. flow control and congestion control, UDP, TCP, sockets
+270. framing, error detection, Medium Access Control, Ethernet bridging
+271. generating functions.
+272. graphs.
+273. greedy (approximate)
+274. greedy, dynamic programming and divide-and-conquer
+275. greedy, dynamic programming and divide-and-conquer.
+276. hashing
+277. inter-process communication, concurrency and synchronization
+278. lexical analysis, parsing, syntax-directed translation.
+279. linked lists
+280. main memory (approximate)
+281. minimum spanning trees
+282. minimum spanning trees, shortest paths
+283. minimum spanning trees, shortest paths.
+284. normal forms
+285. normal forms.
+286. parsing
+287. parsing (approximate)
+288. parsing, syntax-directed translation
+289. parsing, syntax-directed translation.
+290. partial orders and lattices
+291. processes
+292. processes, threads
+293. queues
+294. queues, linked lists, trees, binary search trees, binary heaps, graphs.
+295. recurrence relations
+296. recurrence relations, generating functions
+297. recurrence relations, generating functions.
+298. relational algebra
+299. relational algebra, tuple calculus
+300. relational algebra, tuple calculus, SQL.
+301. sequential circuits
+302. shortest paths
+303. shortest paths.
+304. sockets
+305. sorting
+306. stacks
+307. stacks, queues
+308. stacks, queues, linked lists, trees, binary search trees, binary heaps, graphs.
+309. syntax-directed translation
+310. syntax-directed translation.
+311. system of linear equations
+312. system of linear equations, eigenvalues and eigenvectors, LU decomposition.
+313. threads
+314. trees
+315. trees, binary search trees
+316. trees, binary search trees, binary heaps, graphs
+317. trees, binary search trees, binary heaps, graphs.
+
+Total unique subtopics: 317

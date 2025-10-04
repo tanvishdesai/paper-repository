@@ -119,6 +119,12 @@ curl -X GET "https://your-domain.com/api/v1/questions?subject=Algorithms&limit=1
       "paper_code": "CS",
       "question_no": "Q.25",
       "question_text": "What is the time complexity of merge sort?",
+      "options": [
+        "(A) O(n)",
+        "(B) O(n log n)",
+        "(C) O(n^2)",
+        "(D) O(log n)"
+      ],
       "subject": "Algorithms",
       "chapter": "Sorting",
       "subtopic": "Merge Sort",

@@ -3,6 +3,7 @@ export interface Question {
   paper_code: string;
   question_no: string;
   question_text: string;
+  options?: string[];
   subject: string;
   chapter: string;
   subtopic: string;

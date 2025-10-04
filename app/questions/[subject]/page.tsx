@@ -5,7 +5,8 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Question } from "@/types/question";
 import { subjects } from "@/lib/subjects";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { normalizeSubtopic, getDisplaySubtopic, getUniqueSubtopics } from "@/lib/subtopicNormalization";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ArrowLeft, BookOpen, Search, Filter, SortAsc } from "lucide-react";
+import { ChatDialog } from "@/components/chat-dialog";
+import { ArrowLeft, BookOpen, Search, Filter, SortAsc, Play, X, Check, ChevronRight, HelpCircle } from "lucide-react";
+
+// All available year files
+const YEAR_FILES = [
+  "2007.json", "2008.json", "2009.json", "2010.json", "2012.json",
+  "2013.json", "2014.json", "2015.json", "2016.json", "2017.json",
+  "2018.json", "2019.json", "2020.json", "2021-1.json", "2022.json",
+  "2023.json", "2024-1.json", "2024-2.json", "2025-1.json", "2025-2.json"
+];
 
 export default function QuestionsPage() {
   const params = useParams();
@@ -28,7 +38,14 @@ export default function QuestionsPage() {
   const [yearFilter, setYearFilter] = useState("all");
   const [marksFilter, setMarksFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [subtopicFilter, setSubtopicFilter] = useState("all");
   const [sortBy, setSortBy] = useState("year-desc");
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatQuestion, setChatQuestion] = useState<Question | null>(null);
 
   const subject = subjects.find(
     (s) => s.fileName.replace(".json", "") === decodeURIComponent(subjectParam)
@@ -37,10 +54,28 @@ export default function QuestionsPage() {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        const fileName = subject?.fileName || `${subjectParam}.json`;
-        const response = await fetch(`/data/${fileName}`);
-        const data = await response.json();
-        setQuestions(data);
+        // Load all year files
+        const allQuestions: Question[] = [];
+        
+        for (const yearFile of YEAR_FILES) {
+          try {
+            const response = await fetch(`/data/${yearFile}`);
+            if (response.ok) {
+              const data = await response.json();
+              allQuestions.push(...data);
+            }
+          } catch (error) {
+            console.error(`Error loading ${yearFile}:`, error);
+          }
+        }
+
+        // Filter by subject
+        const subjectName = subject?.name || decodeURIComponent(subjectParam);
+        const filteredBySubject = allQuestions.filter(
+          q => q.subject.toLowerCase() === subjectName.toLowerCase()
+        );
+        
+        setQuestions(filteredBySubject);
       } catch (error) {
         console.error("Error loading questions:", error);
       } finally {
@@ -62,6 +97,11 @@ export default function QuestionsPage() {
     return uniqueMarks;
   }, [questions]);
 
+  const subtopics = useMemo(() => {
+    const rawSubtopics = questions.map((q) => q.subtopic).filter((s) => s != null && s.trim() !== "");
+    return getUniqueSubtopics(rawSubtopics);
+  }, [questions]);
+
   // Filter and sort questions
   const filteredQuestions = useMemo(() => {
     const filtered = questions.filter((q) => {
@@ -74,8 +114,9 @@ export default function QuestionsPage() {
       const matchesMarks = marksFilter === "all" || q.marks?.toString() === marksFilter;
       const matchesType =
         typeFilter === "all" || q.theoretical_practical === typeFilter;
+      const matchesSubtopic = subtopicFilter === "all" || normalizeSubtopic(q.subtopic) === normalizeSubtopic(subtopicFilter);
 
-      return matchesSearch && matchesYear && matchesMarks && matchesType;
+      return matchesSearch && matchesYear && matchesMarks && matchesType && matchesSubtopic;
     });
 
     // Sort questions
@@ -95,7 +136,57 @@ export default function QuestionsPage() {
     });
 
     return filtered;
-  }, [questions, searchQuery, yearFilter, marksFilter, typeFilter, sortBy]);
+  }, [questions, searchQuery, yearFilter, marksFilter, typeFilter, subtopicFilter, sortBy]);
+
+  // Filter questions with options for practice mode
+  const practiceQuestions = useMemo(() => {
+    return filteredQuestions.filter(q => q.options && q.options.length > 0);
+  }, [filteredQuestions]);
+
+  const handleStartPractice = () => {
+    if (practiceQuestions.length > 0) {
+      setPracticeMode(true);
+      setCurrentQuestionIndex(0);
+      setSelectedAnswer(null);
+      setAnsweredQuestions(new Set());
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < practiceQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSelectedAnswer(null);
+    }
+  };
+
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setSelectedAnswer(null);
+    }
+  };
+
+  const handleAnswerSelect = (answer: string) => {
+    setSelectedAnswer(answer);
+    setAnsweredQuestions(new Set(answeredQuestions).add(currentQuestionIndex));
+  };
+
+  const handleExitPractice = () => {
+    setPracticeMode(false);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setAnsweredQuestions(new Set());
+  };
+
+  const handleOpenChat = (question: Question) => {
+    setChatQuestion(question);
+    setChatOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setChatOpen(false);
+    setChatQuestion(null);
+  };
 
   if (loading) {
     return (
@@ -104,6 +195,185 @@ export default function QuestionsPage() {
           <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-muted-foreground">Loading questions...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Practice Mode View
+  if (practiceMode && practiceQuestions.length > 0) {
+    const currentQuestion = practiceQuestions[currentQuestionIndex];
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        {/* Practice Mode Header */}
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={handleExitPractice}>
+                  <X className="h-5 w-5" />
+                </Button>
+                <div>
+                  <h1 className="text-lg font-bold">Practice Mode</h1>
+                  <p className="text-xs text-muted-foreground">
+                    Question {currentQuestionIndex + 1} of {practiceQuestions.length}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenChat(currentQuestion)}
+                  className="gap-2"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  Help
+                </Button>
+                <ThemeToggle />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Progress</span>
+              <span className="text-sm text-muted-foreground">
+                {answeredQuestions.size} / {practiceQuestions.length} answered
+              </span>
+            </div>
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${(answeredQuestions.size / practiceQuestions.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Question Card */}
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-card/95 border border-border/50 shadow-lg mb-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10"></div>
+            <div className="relative p-8">
+              <div className="flex items-start justify-between gap-6 mb-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    {currentQuestion.year && (
+                      <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-primary/20 text-primary font-medium">
+                        {currentQuestion.year}
+                      </Badge>
+                    )}
+                    {currentQuestion.marks != null && (
+                      <Badge variant="default" className="bg-primary/10 text-primary">
+                        {currentQuestion.marks} Mark{currentQuestion.marks !== 1 ? "s" : ""}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="bg-secondary/80 backdrop-blur-sm">
+                      {currentQuestion.theoretical_practical}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground/80 bg-muted/50 px-2 py-1 rounded-full">
+                      #{currentQuestion.question_no}
+                    </span>
+                  </div>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <p className="text-xl leading-relaxed text-foreground/90 font-medium m-0">
+                      {currentQuestion.question_text}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                  Select your answer
+                </div>
+                <div className="grid gap-3">
+                  {currentQuestion.options?.map((option, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleAnswerSelect(option)}
+                      className={`group/option w-full text-left p-5 rounded-xl border-2 transition-all duration-300 ${
+                        selectedAnswer === option
+                          ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
+                          : "border-border/50 hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={`flex-shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                            selectedAnswer === option
+                              ? "border-primary bg-primary shadow-sm"
+                              : "border-border group-hover/option:border-primary/50"
+                          }`}
+                        >
+                          {selectedAnswer === option && (
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          )}
+                        </div>
+                        <span className={`flex-1 text-left transition-colors ${
+                          selectedAnswer === option ? "text-primary font-medium" : "text-foreground/80 group-hover/option:text-foreground"
+                        }`}>
+                          {option}
+                        </span>
+                        <div className="flex-shrink-0 text-xs font-medium text-primary/60 bg-primary/10 px-2 py-1 rounded-full">
+                          {String.fromCharCode(65 + index)}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-border/30">
+                <div className="flex flex-wrap gap-6 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground/80">
+                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"></div>
+                    <span className="font-medium">Topic:</span>
+                    <span className="text-foreground/70">{getDisplaySubtopic(currentQuestion.subtopic)}</span>
+                  </div>
+                  {currentQuestion.provenance && (
+                    <div className="flex items-center gap-2 text-muted-foreground/80">
+                      <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"></div>
+                      <span className="font-medium">Source:</span>
+                      <span className="text-foreground/70">{currentQuestion.provenance}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={handlePreviousQuestion}
+              disabled={currentQuestionIndex === 0}
+            >
+              Previous
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {currentQuestionIndex + 1} / {practiceQuestions.length}
+            </div>
+            <Button
+              onClick={handleNextQuestion}
+              disabled={currentQuestionIndex === practiceQuestions.length - 1}
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Chat Dialog */}
+        <ChatDialog
+          isOpen={chatOpen}
+          onClose={handleCloseChat}
+          question={chatQuestion}
+        />
       </div>
     );
   }
@@ -134,7 +404,15 @@ export default function QuestionsPage() {
                 </div>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              {practiceQuestions.length > 0 && (
+                <Button onClick={handleStartPractice} className="gap-2">
+                  <Play className="h-4 w-4" />
+                  Practice Mode
+                </Button>
+              )}
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
@@ -154,7 +432,7 @@ export default function QuestionsPage() {
           </div>
 
           {/* Filter Controls */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Filter className="h-4 w-4" />
@@ -214,6 +492,26 @@ export default function QuestionsPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Subtopic
+              </label>
+              <Select value={subtopicFilter} onValueChange={setSubtopicFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subtopics</SelectItem>
+                  {subtopics.map((subtopic) => (
+                    <SelectItem key={subtopic} value={subtopic}>
+                      {subtopic}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
                 <SortAsc className="h-4 w-4" />
                 Sort By
               </label>
@@ -232,7 +530,7 @@ export default function QuestionsPage() {
           </div>
 
           {/* Active Filters Summary */}
-          {(searchQuery || yearFilter !== "all" || marksFilter !== "all" || typeFilter !== "all") && (
+          {(searchQuery || yearFilter !== "all" || marksFilter !== "all" || typeFilter !== "all" || subtopicFilter !== "all") && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground">Active filters:</span>
               {searchQuery && (
@@ -249,6 +547,9 @@ export default function QuestionsPage() {
               {typeFilter !== "all" && (
                 <Badge variant="secondary">Type: {typeFilter}</Badge>
               )}
+              {subtopicFilter !== "all" && (
+                <Badge variant="secondary">Subtopic: {getDisplaySubtopic(subtopicFilter)}</Badge>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -257,6 +558,7 @@ export default function QuestionsPage() {
                   setYearFilter("all");
                   setMarksFilter("all");
                   setTypeFilter("all");
+                  setSubtopicFilter("all");
                 }}
               >
                 Clear All
@@ -275,46 +577,105 @@ export default function QuestionsPage() {
             </p>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {filteredQuestions.map((question, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
+              <div key={index} className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card via-card to-card/95 border border-border/50 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 hover:-translate-y-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative p-8">
+                  <div className="flex items-start justify-between gap-6 mb-6">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        {question.year && <Badge variant="outline">{question.year}</Badge>}
-                        {question.marks != null && <Badge variant="default">{question.marks} Mark{question.marks !== 1 ? "s" : ""}</Badge>}
-                        <Badge variant="secondary">
+                      <div className="flex items-center gap-3 mb-4 flex-wrap">
+                        {question.year && (
+                          <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-primary/20 text-primary font-medium">
+                            {question.year}
+                          </Badge>
+                        )}
+                        {question.marks != null && (
+                          <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-colors">
+                            {question.marks} Mark{question.marks !== 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="bg-secondary/80 backdrop-blur-sm">
                           {question.theoretical_practical}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {question.question_no}
+                        <span className="text-xs text-muted-foreground/80 bg-muted/50 px-2 py-1 rounded-full">
+                          #{question.question_no}
                         </span>
                       </div>
-                      <CardTitle className="text-base font-normal leading-relaxed">
-                        {question.question_text}
-                      </CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2 text-sm">
-                    <div className="text-muted-foreground">
-                      <span className="font-medium">Topic:</span> {question.subtopic}
-                    </div>
-                    {question.provenance && (
-                      <div className="text-muted-foreground">
-                        <span className="font-medium">Source:</span> {question.provenance}
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <p className="text-lg leading-relaxed text-foreground/90 font-medium m-0">
+                          {question.question_text}
+                        </p>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  {/* Display Options */}
+                  {question.options && question.options.length > 0 && (
+                    <div className="mb-6 space-y-3">
+                      <div className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                        Options
+                      </div>
+                      <div className="grid gap-3">
+                        {question.options.map((option, optIndex) => (
+                          <div
+                            key={optIndex}
+                            className="group/option relative p-4 rounded-xl bg-gradient-to-r from-accent/30 via-accent/20 to-accent/30 border border-border/30 hover:border-primary/20 hover:bg-accent/50 transition-all duration-300"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-medium text-primary group-hover/option:bg-primary group-hover/option:text-primary-foreground transition-colors">
+                                {String.fromCharCode(65 + optIndex)}
+                              </div>
+                              <span className="text-sm leading-relaxed text-foreground/80 group-hover/option:text-foreground transition-colors">
+                                {option}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-border/30">
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground/80">
+                        <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"></div>
+                        <span className="font-medium">Topic:</span>
+                        <span className="text-foreground/70">{getDisplaySubtopic(question.subtopic)}</span>
+                      </div>
+                      {question.provenance && (
+                        <div className="flex items-center gap-2 text-muted-foreground/80">
+                          <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"></div>
+                          <span className="font-medium">Source:</span>
+                          <span className="text-foreground/70">{question.provenance}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenChat(question)}
+                      className="gap-2 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300"
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                      Get Help
+                    </Button>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
+
+
+        {/* Chat Dialog */}
+        <ChatDialog
+          isOpen={chatOpen}
+          onClose={handleCloseChat}
+          question={chatQuestion}
+        />
       </div>
     </div>
   );
 }
-

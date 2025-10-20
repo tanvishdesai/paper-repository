@@ -19,15 +19,45 @@ import {
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ChatDialog } from "@/components/chat-dialog";
-import { ArrowLeft, BookOpen, Search, Filter, SortAsc, Play, X, Check, ChevronRight, HelpCircle } from "lucide-react";
+import { SimilarQuestions } from "@/components/similar-questions";
+import { ArrowLeft, BookOpen, Search, Filter, SortAsc, Play, X, Check, ChevronRight, HelpCircle, CheckCircle } from "lucide-react";
 
-// All available year files
-const YEAR_FILES = [
-  "2007.json", "2008.json", "2009.json", "2010.json", "2012.json",
-  "2013.json", "2014.json", "2015.json", "2016.json", "2017.json",
-  "2018.json", "2019.json", "2020.json", "2021-1.json", "2022.json",
-  "2023.json", "2024-1.json", "2024-2.json", "2025-1.json", "2025-2.json"
-];
+// Helper function to detect the correct option index based on correct_answer text
+function detectCorrectOption(options: string[], correctAnswer?: string): number | null {
+  if (!options || !correctAnswer || !correctAnswer.trim()) {
+    return null;
+  }
+
+  const normalizedOptions = options.map(opt => opt.toLowerCase().trim());
+  const normalizedAnswer = correctAnswer.toLowerCase().trim();
+
+  // Direct text match
+  const directMatch = normalizedOptions.findIndex(opt => opt === normalizedAnswer);
+  if (directMatch !== -1) {
+    return directMatch;
+  }
+
+  // Letter match (A, B, C, D)
+  const letterMatch = correctAnswer.trim().match(/^(?:option\s*)?([A-D])\.?$/i);
+  if (letterMatch) {
+    const letter = letterMatch[1].toUpperCase();
+    const index = letter.charCodeAt(0) - 'A'.charCodeAt(0);
+    if (index >= 0 && index < options.length) {
+      return index;
+    }
+  }
+
+  // Number match (1, 2, 3, 4)
+  const numberMatch = correctAnswer.trim().match(/^(?:option\s*)?(\d+)$/i);
+  if (numberMatch) {
+    const index = parseInt(numberMatch[1]) - 1;
+    if (index >= 0 && index < options.length) {
+      return index;
+    }
+  }
+
+  return null;
+}
 
 export default function QuestionsPage() {
   const params = useParams();
@@ -42,8 +72,8 @@ export default function QuestionsPage() {
   const [sortBy, setSortBy] = useState("year-desc");
   const [practiceMode, setPracticeMode] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
+  const [userAnswers, setUserAnswers] = useState<Map<number, string>>(new Map());
+  const [quizCompleted, setQuizCompleted] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatQuestion, setChatQuestion] = useState<Question | null>(null);
 
@@ -54,9 +84,30 @@ export default function QuestionsPage() {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        // Load all year files
-        const allQuestions: Question[] = [];
+        // Load from Neo4j via API (fallback to JSON if Neo4j is not configured)
+        const subjectName = subject?.name || decodeURIComponent(subjectParam);
         
+        try {
+          // Try Neo4j first
+          const response = await fetch(`/api/internal/questions?subject=${encodeURIComponent(subjectName)}&limit=1000`);
+          if (response.ok) {
+            const data = await response.json();
+            setQuestions(data.data || []);
+            return;
+          }
+        } catch (neo4jError) {
+          console.warn("Neo4j not available, falling back to JSON files:", neo4jError);
+        }
+
+        // Fallback to JSON files
+        const YEAR_FILES = [
+          "2007.json", "2008.json", "2009.json", "2010.json", "2012.json",
+          "2013.json", "2014.json", "2015.json", "2016.json", "2017.json",
+          "2018.json", "2019.json", "2020.json", "2021-1.json", "2022.json",
+          "2023.json", "2024-1.json", "2024-2.json", "2025-1.json", "2025-2.json"
+        ];
+        
+        const allQuestions: Question[] = [];
         for (const yearFile of YEAR_FILES) {
           try {
             const response = await fetch(`/data/${yearFile}`);
@@ -69,8 +120,6 @@ export default function QuestionsPage() {
           }
         }
 
-        // Filter by subject
-        const subjectName = subject?.name || decodeURIComponent(subjectParam);
         const filteredBySubject = allQuestions.filter(
           q => q.subject.toLowerCase() === subjectName.toLowerCase()
         );
@@ -147,35 +196,43 @@ export default function QuestionsPage() {
     if (practiceQuestions.length > 0) {
       setPracticeMode(true);
       setCurrentQuestionIndex(0);
-      setSelectedAnswer(null);
-      setAnsweredQuestions(new Set());
+      setUserAnswers(new Map());
+      setQuizCompleted(false);
     }
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < practiceQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
+    } else {
+      // Quiz completed
+      setQuizCompleted(true);
     }
   };
 
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
-      setSelectedAnswer(null);
     }
   };
 
   const handleAnswerSelect = (answer: string) => {
-    setSelectedAnswer(answer);
-    setAnsweredQuestions(new Set(answeredQuestions).add(currentQuestionIndex));
+    // Record the answer
+    const newAnswers = new Map(userAnswers);
+    newAnswers.set(currentQuestionIndex, answer);
+    setUserAnswers(newAnswers);
+
+    // Auto-advance to next question after a short delay
+    setTimeout(() => {
+      handleNextQuestion();
+    }, 500);
   };
 
   const handleExitPractice = () => {
     setPracticeMode(false);
     setCurrentQuestionIndex(0);
-    setSelectedAnswer(null);
-    setAnsweredQuestions(new Set());
+    setUserAnswers(new Map());
+    setQuizCompleted(false);
   };
 
   const handleOpenChat = (question: Question) => {
@@ -201,7 +258,153 @@ export default function QuestionsPage() {
 
   // Practice Mode View
   if (practiceMode && practiceQuestions.length > 0) {
+    // Show results screen if quiz is completed
+    if (quizCompleted) {
+      const totalQuestions = practiceQuestions.length;
+      const answeredQuestions = userAnswers.size;
+      const correctAnswers = practiceQuestions.reduce((count, question, index) => {
+        const userAnswer = userAnswers.get(index);
+        if (!userAnswer || !question.options) return count;
+
+        const correctOptionIndex = detectCorrectOption(question.options, question.correct_answer);
+        const isCorrect = correctOptionIndex !== null && question.options[correctOptionIndex] === userAnswer;
+        return count + (isCorrect ? 1 : 0);
+      }, 0);
+      const incorrectAnswers = answeredQuestions - correctAnswers;
+      const unansweredQuestions = totalQuestions - answeredQuestions;
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+          {/* Results Header */}
+          <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Button variant="ghost" size="icon" onClick={handleExitPractice}>
+                    <X className="h-5 w-5" />
+                  </Button>
+                  <div>
+                    <h1 className="text-lg font-bold">Quiz Results</h1>
+                    <p className="text-xs text-muted-foreground">
+                      {subject?.name || decodeURIComponent(subjectParam)}
+                    </p>
+                  </div>
+                </div>
+                <ThemeToggle />
+              </div>
+            </div>
+          </header>
+
+          <div className="container mx-auto px-4 py-8 max-w-4xl">
+            {/* Results Summary */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">
+                    {totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Score</div>
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Quiz Complete!</h2>
+              <p className="text-muted-foreground">
+                You answered {answeredQuestions} out of {totalQuestions} questions
+              </p>
+            </div>
+
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="text-center p-4 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{correctAnswers}</div>
+                <div className="text-sm text-green-600 dark:text-green-400">Correct</div>
+              </div>
+              <div className="text-center p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{incorrectAnswers}</div>
+                <div className="text-sm text-red-600 dark:text-red-400">Incorrect</div>
+              </div>
+              <div className="text-center p-4 rounded-xl bg-gray-50 dark:bg-gray-950/20 border border-gray-200 dark:border-gray-800">
+                <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{unansweredQuestions}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Unanswered</div>
+              </div>
+              <div className="text-center p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalQuestions}</div>
+                <div className="text-sm text-blue-600 dark:text-blue-400">Total</div>
+              </div>
+            </div>
+
+            {/* Question Review */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold mb-4">Question Review</h3>
+              {practiceQuestions.map((question, index) => {
+                const userAnswer = userAnswers.get(index);
+                const correctOptionIndex = question.options ? detectCorrectOption(question.options, question.correct_answer) : null;
+                const isCorrect = userAnswer && correctOptionIndex !== null && question.options && question.options[correctOptionIndex] === userAnswer;
+                const isAnswered = userAnswer !== undefined;
+
+                return (
+                  <div key={index} className="p-4 rounded-xl border bg-card">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                        !isAnswered
+                          ? "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                          : isCorrect
+                          ? "bg-green-500 text-white"
+                          : "bg-red-500 text-white"
+                      }`}>
+                        {!isAnswered ? "?" : isCorrect ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm mb-2">Question {index + 1}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{question.question_text}</p>
+                      </div>
+                    </div>
+
+                    {question.options && (
+                      <div className="grid gap-2 ml-9">
+                        {question.options.map((option, optIndex) => {
+                          const isUserChoice = userAnswer === option;
+                          const isCorrectOption = correctOptionIndex === optIndex;
+
+                          return (
+                            <div
+                              key={optIndex}
+                              className={`text-xs p-2 rounded border ${
+                                isCorrectOption
+                                  ? "bg-green-50 dark:bg-green-950/20 border-green-500/50 text-green-800 dark:text-green-200"
+                                  : isUserChoice && !isCorrectOption
+                                  ? "bg-red-50 dark:bg-red-950/20 border-red-500/50 text-red-800 dark:text-red-200"
+                                  : "bg-muted/30 border-border/30 text-muted-foreground"
+                              }`}
+                            >
+                              <span className="font-medium">{String.fromCharCode(65 + optIndex)}.</span> {option}
+                              {isUserChoice && <span className="ml-2 text-xs">(Your answer)</span>}
+                              {isCorrectOption && <span className="ml-2 text-xs">(Correct)</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-4 mt-8">
+              <Button onClick={() => handleStartPractice()} variant="outline">
+                Retake Quiz
+              </Button>
+              <Button onClick={handleExitPractice}>
+                Back to Questions
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     const currentQuestion = practiceQuestions[currentQuestionIndex];
+    const selectedAnswer = userAnswers.get(currentQuestionIndex);
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -242,13 +445,13 @@ export default function QuestionsPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">Progress</span>
               <span className="text-sm text-muted-foreground">
-                {answeredQuestions.size} / {practiceQuestions.length} answered
+                {userAnswers.size} / {practiceQuestions.length} answered
               </span>
             </div>
             <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${(answeredQuestions.size / practiceQuestions.length) * 100}%` }}
+                style={{ width: `${(userAnswers.size / practiceQuestions.length) * 100}%` }}
               />
             </div>
           </div>
@@ -291,39 +494,46 @@ export default function QuestionsPage() {
                   Select your answer
                 </div>
                 <div className="grid gap-3">
-                  {currentQuestion.options?.map((option, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleAnswerSelect(option)}
-                      className={`group/option w-full text-left p-5 rounded-xl border-2 transition-all duration-300 ${
-                        selectedAnswer === option
-                          ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
-                          : "border-border/50 hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div
-                          className={`flex-shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                            selectedAnswer === option
-                              ? "border-primary bg-primary shadow-sm"
-                              : "border-border group-hover/option:border-primary/50"
-                          }`}
-                        >
-                          {selectedAnswer === option && (
-                            <Check className="h-3 w-3 text-primary-foreground" />
-                          )}
+                  {currentQuestion.options?.map((option, index) => {
+                    const isSelected = selectedAnswer === option;
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswerSelect(option)}
+                        disabled={selectedAnswer !== undefined}
+                        className={`group/option w-full text-left p-5 rounded-xl border-2 transition-all duration-300 ${
+                          isSelected
+                            ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
+                            : selectedAnswer !== undefined
+                            ? "border-border/30 bg-muted/30 cursor-not-allowed opacity-60"
+                            : "border-border/50 hover:border-primary/30 hover:bg-accent/50 hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`flex-shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                              isSelected
+                                ? "border-primary bg-primary shadow-sm"
+                                : "border-border group-hover/option:border-primary/50"
+                            }`}
+                          >
+                            {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                          </div>
+                          <span className={`flex-1 text-left transition-colors ${
+                            isSelected
+                              ? "text-primary font-medium"
+                              : "text-foreground/80 group-hover/option:text-foreground"
+                          }`}>
+                            {option}
+                          </span>
+                          <div className="flex-shrink-0 text-xs font-medium text-primary/60 bg-primary/10 px-2 py-1 rounded-full">
+                            {String.fromCharCode(65 + index)}
+                          </div>
                         </div>
-                        <span className={`flex-1 text-left transition-colors ${
-                          selectedAnswer === option ? "text-primary font-medium" : "text-foreground/80 group-hover/option:text-foreground"
-                        }`}>
-                          {option}
-                        </span>
-                        <div className="flex-shrink-0 text-xs font-medium text-primary/60 bg-primary/10 px-2 py-1 rounded-full">
-                          {String.fromCharCode(65 + index)}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -355,14 +565,21 @@ export default function QuestionsPage() {
             >
               Previous
             </Button>
-            <div className="text-sm text-muted-foreground">
-              {currentQuestionIndex + 1} / {practiceQuestions.length}
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-1">
+                {currentQuestionIndex + 1} / {practiceQuestions.length}
+              </div>
+              {selectedAnswer === undefined && (
+                <div className="text-xs text-orange-600 dark:text-orange-400">
+                  Select an answer to continue
+                </div>
+              )}
             </div>
             <Button
               onClick={handleNextQuestion}
-              disabled={currentQuestionIndex === practiceQuestions.length - 1}
+              disabled={selectedAnswer === undefined || currentQuestionIndex === practiceQuestions.length - 1}
             >
-              Next
+              {currentQuestionIndex === practiceQuestions.length - 1 ? "Finish Quiz" : "Next"}
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -618,21 +835,49 @@ export default function QuestionsPage() {
                         Options
                       </div>
                       <div className="grid gap-3">
-                        {question.options.map((option, optIndex) => (
-                          <div
-                            key={optIndex}
-                            className="group/option relative p-4 rounded-xl bg-gradient-to-r from-accent/30 via-accent/20 to-accent/30 border border-border/30 hover:border-primary/20 hover:bg-accent/50 transition-all duration-300"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-medium text-primary group-hover/option:bg-primary group-hover/option:text-primary-foreground transition-colors">
-                                {String.fromCharCode(65 + optIndex)}
+                        {question.options.map((option, optIndex) => {
+                          const correctOptionIndex = detectCorrectOption(question.options!, question.correct_answer);
+                          const isCorrect = correctOptionIndex === optIndex;
+
+                          return (
+                            <div
+                              key={optIndex}
+                              className={`group/option relative p-4 rounded-xl border transition-all duration-300 ${
+                                isCorrect
+                                  ? "bg-green-50 dark:bg-green-950/20 border-green-500/50 from-green-500/5 to-green-500/10"
+                                  : "bg-gradient-to-r from-accent/30 via-accent/20 to-accent/30 border-border/30 hover:border-primary/20 hover:bg-accent/50"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium transition-colors ${
+                                  isCorrect
+                                    ? "bg-green-500 border-green-500 text-white shadow-sm shadow-green-500/30"
+                                    : "bg-primary/10 border-primary/20 text-primary group-hover/option:bg-primary group-hover/option:text-primary-foreground"
+                                }`}>
+                                  {isCorrect ? (
+                                    <CheckCircle className="h-3 w-3" />
+                                  ) : (
+                                    String.fromCharCode(65 + optIndex)
+                                  )}
+                                </div>
+                                <span className={`text-sm leading-relaxed transition-colors ${
+                                  isCorrect
+                                    ? "text-green-800 dark:text-green-200 font-medium"
+                                    : "text-foreground/80 group-hover/option:text-foreground"
+                                }`}>
+                                  {option}
+                                </span>
+                                {isCorrect && (
+                                  <div className="flex-shrink-0 ml-auto">
+                                    <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700">
+                                      Correct Answer
+                                    </Badge>
+                                  </div>
+                                )}
                               </div>
-                              <span className="text-sm leading-relaxed text-foreground/80 group-hover/option:text-foreground transition-colors">
-                                {option}
-                              </span>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -662,6 +907,14 @@ export default function QuestionsPage() {
                       Get Help
                     </Button>
                   </div>
+
+                  {/* Similar Questions powered by Graph Database */}
+                  {question.questionId && (
+                    <SimilarQuestions
+                      questionId={question.questionId}
+                      onQuestionClick={handleOpenChat}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -678,4 +931,5 @@ export default function QuestionsPage() {
       </div>
     </div>
   );
+
 }

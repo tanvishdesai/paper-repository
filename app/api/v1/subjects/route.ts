@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { subjects } from "@/lib/subjects";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -22,7 +21,7 @@ async function verifyApiKey(apiKey: string) {
   return result;
 }
 
-// Get list of all subjects
+// Get list of all subjects from Convex
 export async function GET(request: NextRequest) {
   try {
     // Get API key from header
@@ -51,21 +50,19 @@ export async function GET(request: NextRequest) {
       console.error("Failed to log API usage:", error);
     }
 
+    // Get subjects from Convex
+    const subjects = await convex.query(api.questions.getSubjects);
+
     // Return subjects list
     return NextResponse.json({
       success: true,
-      data: subjects.map(s => ({
-        name: s.name,
-        fileName: s.fileName.replace('.json', ''),
-        description: s.description,
-        icon: s.icon,
-      })),
+      data: subjects,
     });
 
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

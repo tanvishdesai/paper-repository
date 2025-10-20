@@ -43,6 +43,17 @@ export default function Home() {
                 asChild
                 className="relative px-4 py-2 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
               >
+                <Link href="/explore" className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                  <span>Explore Graph</span>
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="relative px-4 py-2 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
+              >
                 <Link href="/stats" className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
                   <span>Analytics</span>

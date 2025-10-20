@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "test-gemini": "node test-gemini.js"
+    "test-gemini": "node test-gemini.js",
+    "migrate": "tsx scripts/migrate-to-convex.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.33.1",
@@ -26,6 +27,7 @@
     "clsx": "^2.1.1",
     "convex": "^1.27.3",
     "convex-helpers": "^0.1.104",
+    "d3": "^7.9.0",
     "lucide-react": "^0.544.0",
     "next": "15.5.4",
     "next-themes": "^0.4.6",
@@ -38,12 +40,15 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/d3": "^7.4.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

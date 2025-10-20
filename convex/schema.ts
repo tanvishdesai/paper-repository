@@ -34,5 +34,64 @@ export default defineSchema({
   })
     .index("by_api_key", ["apiKeyId", "timestamp"])
     .index("by_user", ["userId", "timestamp"]),
+
+  // Questions table
+  questions: defineTable({
+    questionId: v.string(), // Unique identifier
+    question_no: v.string(), // e.g., "Q.21"
+    question_text: v.string(),
+    year: v.number(),
+    paper_code: v.string(), // e.g., "CS2"
+    subject: v.string(),
+    chapter: v.string(),
+    subtopic: v.string(),
+    marks: v.number(), // Question marks/points
+    theoretical_practical: v.string(), // "theoretical" or "practical"
+    provenance: v.string(), // Source of the question
+    confidence: v.number(), // Confidence score (0-1)
+    correct_answer: v.string(), // The correct answer
+    has_diagram: v.boolean(), // Whether question contains a diagram
+    options: v.optional(v.array(v.string())), // Multiple choice options (null for NAT questions)
+  })
+    .index("by_question_id", ["questionId"])
+    .index("by_subject", ["subject"])
+    .index("by_year", ["year"])
+    .index("by_subject_year", ["subject", "year"])
+    .index("by_chapter", ["chapter"])
+    .index("by_subtopic", ["subtopic"])
+    .index("by_year_paper", ["year", "paper_code"])
+    .searchIndex("search_question_text", {
+      searchField: "question_text",
+      filterFields: ["subject", "year", "chapter", "subtopic"],
+    }),
+
+  // Subjects table for quick reference and stats
+  subjects: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    questionCount: v.number(),
+  })
+    .index("by_name", ["name"]),
+
+  // Chapters table for organizing questions
+  chapters: defineTable({
+    name: v.string(),
+    subject: v.string(),
+    questionCount: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_subject", ["subject"]),
+
+  // Subtopics table for detailed classification
+  subtopics: defineTable({
+    name: v.string(),
+    chapter: v.string(),
+    subject: v.string(),
+    questionCount: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_chapter", ["chapter"])
+    .index("by_subject", ["subject"]),
 });
 

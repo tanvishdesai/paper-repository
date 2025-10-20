@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getDisplaySubtopic } from "@/lib/subtopicNormalization";
 import { BookOpen, TrendingUp, BarChart3, Activity, Target, ArrowLeft, Loader2 } from "lucide-react";
 import {
   BarChart,
@@ -27,37 +28,11 @@ import {
   Pie
 } from 'recharts';
 
-interface Question {
-  year: number;
-  paper_code: string;
-  question_no: string;
-  subject: string;
-  chapter: string;
-  subtopic: string;
-  marks: number;
-  theoretical_practical: string;
-  confidence: number;
-}
-
-interface StatsData {
-  totalQuestions: number;
-  yearDistribution: { year: string; count: number }[];
-  subjectDistribution: { subject: string; count: number }[];
-  marksDistribution: { marks: string; count: number }[];
-  theoryPracticalDistribution: { type: string; count: number }[];
-  chapterDistribution: { chapter: string; count: number }[];
-  topSubtopics: { subtopic: string; count: number }[];
-  subjectComparisonData: { year: string; subject: string; subtopic?: string; count: number }[];
-  allSubjects: string[];
-  allSubtopics: string[];
-}
-
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C'];
 
 export default function StatsPage() {
-  const [statsData, setStatsData] = useState<StatsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Fetch data from Convex
+  const statsData = useQuery(api.questions.getDetailedStats);
 
   // Subject comparison state
   const [subject1, setSubject1] = useState<string>('');
@@ -65,220 +40,11 @@ export default function StatsPage() {
   const [selectedSubtopic1, setSelectedSubtopic1] = useState<string>('all');
   const [selectedSubtopic2, setSelectedSubtopic2] = useState<string>('all');
 
-  useEffect(() => {
-    loadStatsData();
-  }, []);
+  // --- delay rendering until we have statsData, to prevent changing hook order ---
+  const isLoading = !statsData;
 
-  // Reset selected subtopics when subjects change
-  useEffect(() => {
-    if (statsData) {
-      if (subject1) {
-        const availableSubtopics1 = getAvailableSubtopicsForSubject(subject1);
-        if (selectedSubtopic1 !== 'all' && !availableSubtopics1.includes(selectedSubtopic1)) {
-          setSelectedSubtopic1('all');
-        }
-      }
-      if (subject2) {
-        const availableSubtopics2 = getAvailableSubtopicsForSubject(subject2);
-        if (selectedSubtopic2 !== 'all' && !availableSubtopics2.includes(selectedSubtopic2)) {
-          setSelectedSubtopic2('all');
-        }
-      }
-    }
-  }, [subject1, subject2, statsData]);
-
-  const loadStatsData = async () => {
-    try {
-      setLoading(true);
-
-      // List of all data files
-      const dataFiles = [
-        '2007.json', '2008.json', '2009.json', '2010.json', '2012.json',
-        '2013.json', '2014.json', '2015.json', '2016.json', '2017.json',
-        '2018.json', '2019.json', '2020.json', '2021-1.json', '2022.json',
-        '2023.json', '2024-1.json', '2024-2.json', '2025-1.json', '2025-2.json'
-      ];
-
-      const allQuestions: Question[] = [];
-
-      // Load all data files
-      for (const file of dataFiles) {
-        try {
-          const response = await fetch(`/data/${file}`);
-          if (response.ok) {
-            const data = await response.json();
-            allQuestions.push(...data);
-          }
-        } catch (err) {
-          console.warn(`Failed to load ${file}:`, err);
-        }
-      }
-
-      // Process the data
-      const processedData = processStatsData(allQuestions);
-      setStatsData(processedData);
-    } catch (err) {
-      setError('Failed to load statistics data');
-      console.error('Error loading stats:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const processStatsData = (questions: Question[]): StatsData => {
-    const totalQuestions = questions.length;
-
-    // Year distribution
-    const yearMap = new Map<string, number>();
-    questions.forEach(q => {
-      const year = q.year.toString();
-      yearMap.set(year, (yearMap.get(year) || 0) + 1);
-    });
-    const yearDistribution = Array.from(yearMap.entries())
-      .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
-
-    // Subject distribution
-    const subjectMap = new Map<string, number>();
-    questions.forEach(q => {
-      subjectMap.set(q.subject, (subjectMap.get(q.subject) || 0) + 1);
-    });
-    const subjectDistribution = Array.from(subjectMap.entries())
-      .map(([subject, count]) => ({ subject, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10); // Top 10 subjects
-
-    // Marks distribution
-    const marksMap = new Map<string, number>();
-    questions.forEach(q => {
-      const marks = q.marks.toString();
-      marksMap.set(marks, (marksMap.get(marks) || 0) + 1);
-    });
-    const marksDistribution = Array.from(marksMap.entries())
-      .map(([marks, count]) => ({ marks: `${marks} Mark${marks === '1' ? '' : 's'}`, count }))
-      .sort((a, b) => parseInt(a.marks) - parseInt(b.marks));
-
-
-    // Theory vs Practical
-    const theoryPracticalMap = new Map<string, number>();
-    questions.forEach(q => {
-      const type = q.theoretical_practical === 'theoretical' ? 'Theoretical' :
-                   q.theoretical_practical === 'practical' ? 'Practical' : 'Other';
-      theoryPracticalMap.set(type, (theoryPracticalMap.get(type) || 0) + 1);
-    });
-    const theoryPracticalDistribution = Array.from(theoryPracticalMap.entries())
-      .map(([type, count]) => ({ type, count }));
-
-    // Chapter distribution
-    const chapterMap = new Map<string, number>();
-    questions.forEach(q => {
-      chapterMap.set(q.chapter, (chapterMap.get(q.chapter) || 0) + 1);
-    });
-    const chapterDistribution = Array.from(chapterMap.entries())
-      .map(([chapter, count]) => ({ chapter, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 15); // Top 15 chapters
-
-
-    // Top subtopics
-    const subtopicMap = new Map<string, number>();
-    questions.forEach(q => {
-      const normalizedSubtopic = getDisplaySubtopic(q.subtopic);
-      if (normalizedSubtopic) {
-        subtopicMap.set(normalizedSubtopic, (subtopicMap.get(normalizedSubtopic) || 0) + 1);
-      }
-    });
-    const topSubtopics = Array.from(subtopicMap.entries())
-      .map(([subtopic, count]) => ({ subtopic, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 15); // Top 15 subtopics
-
-    // Subject comparison data
-    const subjectComparisonMap = new Map<string, number>();
-    const allSubjectsSet = new Set<string>();
-    const allSubtopicsSet = new Set<string>();
-
-    questions.forEach(q => {
-      const year = q.year.toString();
-      const subject = q.subject;
-      const normalizedSubtopic = getDisplaySubtopic(q.subtopic);
-
-      allSubjectsSet.add(subject);
-      if (normalizedSubtopic) {
-        allSubtopicsSet.add(normalizedSubtopic);
-      }
-
-      // Store data for year-subject combinations
-      const key = `${year}-${subject}`;
-      subjectComparisonMap.set(key, (subjectComparisonMap.get(key) || 0) + 1);
-
-      // Also store data for year-subject-subtopic combinations
-      if (normalizedSubtopic) {
-        const subtopicKey = `${year}-${subject}-${normalizedSubtopic}`;
-        subjectComparisonMap.set(subtopicKey, (subjectComparisonMap.get(subtopicKey) || 0) + 1);
-      }
-    });
-
-    const subjectComparisonData: { year: string; subject: string; subtopic?: string; count: number }[] = [];
-    const allSubjects = Array.from(allSubjectsSet).sort();
-    const allSubtopics = Array.from(allSubtopicsSet).sort();
-
-    // Process the data for subject comparison
-    subjectComparisonMap.forEach((count, key) => {
-      const parts = key.split('-');
-      if (parts.length === 2) {
-        // year-subject combination
-        const [year, subject] = parts;
-        subjectComparisonData.push({ year, subject, count });
-      } else if (parts.length >= 3) {
-        // year-subject-subtopic combination (may have dashes in subtopic name)
-        const year = parts[0];
-        const subject = parts[1];
-        const subtopic = parts.slice(2).join('-');
-        subjectComparisonData.push({ year, subject, subtopic, count });
-      }
-    });
-
-    return {
-      totalQuestions,
-      yearDistribution,
-      subjectDistribution,
-      marksDistribution,
-      theoryPracticalDistribution,
-      chapterDistribution,
-      topSubtopics,
-      subjectComparisonData,
-      allSubjects,
-      allSubtopics
-    };
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">Loading statistics...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-destructive">{error}</p>
-          <Button onClick={loadStatsData}>Try Again</Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!statsData) return null;
-
-  // Get subtopics for a specific subject
-  const getAvailableSubtopicsForSubject = (subject: string) => {
+  // Get subtopics for a specific subject - only defined after statsData is present
+  const getAvailableSubtopicsForSubject = useCallback((subject: string) => {
     if (!subject || !statsData) return [];
 
     const subtopics = new Set<string>();
@@ -288,11 +54,28 @@ export default function StatsPage() {
       }
     });
     return Array.from(subtopics).sort();
-  };
+  }, [statsData]);
+
+  // Reset selected subtopics when subjects change, only after data is ready
+  useEffect(() => {
+    if (!statsData) return;
+    if (subject1) {
+      const availableSubtopics1 = getAvailableSubtopicsForSubject(subject1);
+      if (selectedSubtopic1 !== 'all' && !availableSubtopics1.includes(selectedSubtopic1)) {
+        setSelectedSubtopic1('all');
+      }
+    }
+    if (subject2) {
+      const availableSubtopics2 = getAvailableSubtopicsForSubject(subject2);
+      if (selectedSubtopic2 !== 'all' && !availableSubtopics2.includes(selectedSubtopic2)) {
+        setSelectedSubtopic2('all');
+      }
+    }
+  }, [subject1, subject2, statsData, selectedSubtopic1, selectedSubtopic2, getAvailableSubtopicsForSubject]);
 
   // Process comparison data for the selected subjects and subtopic
-  const getComparisonChartData = () => {
-    if (!subject1 || !subject2) return [];
+  const getComparisonChartData = useCallback(() => {
+    if (!subject1 || !subject2 || !statsData) return [];
 
     const filteredData = statsData.subjectComparisonData.filter(item => {
       if (item.subject === subject1) {
@@ -327,7 +110,19 @@ export default function StatsPage() {
         [subject2]: subjects[subject2] || 0
       }))
       .sort((a, b) => a.year - b.year);
-  };
+  }, [statsData, subject1, subject2, selectedSubtopic1, selectedSubtopic2]);
+
+  if (isLoading) {
+    // Always call hooks before this return.
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-muted-foreground">Loading statistics from Convex...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

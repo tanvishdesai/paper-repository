@@ -1,5 +1,27 @@
 import { v } from "convex/values";
 import { query, mutation} from "./_generated/server";
+import { Doc } from "./_generated/dataModel";
+
+// Simple in-memory cache for expensive queries
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const queryCache = new Map<string, CacheEntry<unknown>>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedResult<T>(key: string): T | null {
+  const cached = queryCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data as T;
+  }
+  return null;
+}
+
+function setCachedResult<T>(key: string, data: T): void {
+  queryCache.set(key, { data, timestamp: Date.now() });
+}
 
 // Helper function to calculate cosine similarity
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -37,39 +59,59 @@ export const getQuestions = query({
     offset: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get questions with optional subject filter
-    let questions;
+    const limit = Math.min(args.limit || 50, 100); // Cap at 100 to prevent large queries
+    const offset = args.offset || 0;
 
-    if (args.subject) {
-      questions = await ctx.db
+    let questions: Doc<"questions">[] = [];
+
+    // Use search index for text search
+    if (args.search) {
+      const searchResults = await ctx.db
         .query("questions")
-        .withIndex("by_subject", (q) => q.eq("subject", args.subject!))
-        .collect();
+        .withSearchIndex("search_question_text", q => 
+          q.search("question_text", args.search!)
+            .eq("subject", args.subject ?? "")
+        )
+        .take(limit + offset);
+      
+      questions = searchResults;
     } else {
-      questions = await ctx.db.query("questions").collect();
+      // Use indexed queries when possible
+      if (args.subject && args.year) {
+        // Use compound index for subject + year
+        questions = await ctx.db
+          .query("questions")
+          .withIndex("by_subject_year", (q) => 
+            q.eq("subject", args.subject!).eq("year", args.year!)
+          )
+          .take(limit * 3); // Get more to filter
+      } else if (args.subject) {
+        // Use subject index
+        questions = await ctx.db
+          .query("questions")
+          .withIndex("by_subject", (q) => q.eq("subject", args.subject!))
+          .take(limit * 3); // Get more to filter
+      } else if (args.year) {
+        // Use year index
+        questions = await ctx.db
+          .query("questions")
+          .withIndex("by_year", (q) => q.eq("year", args.year!))
+          .take(limit * 3); // Get more to filter
+      } else {
+        // Fallback to limited query without loading all
+        questions = await ctx.db
+          .query("questions")
+          .take(limit * 3); // Get more to filter
+      }
     }
 
     // Apply additional filters
-    if (args.year) {
-      questions = questions.filter(q => q.year === args.year);
-    }
-    
     if (args.marks) {
       questions = questions.filter(q => q.marks === args.marks);
     }
     
     if (args.type) {
       questions = questions.filter(q => q.theoretical_practical === args.type);
-    }
-
-    // Apply text search
-    if (args.search) {
-      const searchLower = args.search.toLowerCase();
-      questions = questions.filter(q => 
-        q.question_text.toLowerCase().includes(searchLower) ||
-        q.subtopic.toLowerCase().includes(searchLower) ||
-        q.chapter.toLowerCase().includes(searchLower)
-      );
     }
 
     // Sort by year (desc) then question_no
@@ -79,8 +121,6 @@ export const getQuestions = query({
     });
 
     // Apply pagination
-    const offset = args.offset || 0;
-    const limit = args.limit || 100;
     const paginatedQuestions = questions.slice(offset, offset + limit);
 
     return {
@@ -100,38 +140,59 @@ export const getQuestionCount = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Get questions with optional subject filter
-    let questions;
+    // Use indexed queries and count instead of loading all data
+    if (args.search) {
+      // For search, we need to get the results and count them
+      const searchResults = await ctx.db
+        .query("questions")
+        .withSearchIndex("search_question_text", q => 
+          q.search("question_text", args.search!)
+            .eq("subject", args.subject ?? "")
+        )
+        .collect();
+      
+      // Apply additional filters
+      let filtered = searchResults;
+      if (args.year) filtered = filtered.filter(q => q.year === args.year);
+      if (args.marks) filtered = filtered.filter(q => q.marks === args.marks);
+      if (args.type) filtered = filtered.filter(q => q.theoretical_practical === args.type);
+      
+      return filtered.length;
+    }
 
-    if (args.subject) {
+    // Use indexed queries for non-search cases
+    let questions: Doc<"questions">[] = [];
+
+    if (args.subject && args.year) {
+      questions = await ctx.db
+        .query("questions")
+        .withIndex("by_subject_year", (q) => 
+          q.eq("subject", args.subject!).eq("year", args.year!)
+        )
+        .collect();
+    } else if (args.subject) {
       questions = await ctx.db
         .query("questions")
         .withIndex("by_subject", (q) => q.eq("subject", args.subject!))
         .collect();
+    } else if (args.year) {
+      questions = await ctx.db
+        .query("questions")
+        .withIndex("by_year", (q) => q.eq("year", args.year!))
+        .collect();
     } else {
-      questions = await ctx.db.query("questions").collect();
+      // For no filters, get limited results and count them
+      const limitedQuestions = await ctx.db.query("questions").take(1000);
+      return limitedQuestions.length;
     }
 
-    // Apply filters
-    if (args.year) {
-      questions = questions.filter(q => q.year === args.year);
-    }
-    
+    // Apply additional filters
     if (args.marks) {
       questions = questions.filter(q => q.marks === args.marks);
     }
     
     if (args.type) {
       questions = questions.filter(q => q.theoretical_practical === args.type);
-    }
-
-    if (args.search) {
-      const searchLower = args.search.toLowerCase();
-      questions = questions.filter(q => 
-        q.question_text.toLowerCase().includes(searchLower) ||
-        q.subtopic.toLowerCase().includes(searchLower) ||
-        q.chapter.toLowerCase().includes(searchLower)
-      );
     }
 
     return questions.length;
@@ -159,6 +220,13 @@ export const getSimilarQuestions = query({
   },
   handler: async (ctx, args) => {
     const limit = args.limit || 5;
+    const cacheKey = `similar_${args.questionId}_${limit}`;
+    
+    // Check cache first
+    const cached = getCachedResult<(Doc<"questions"> & { similarityScore: number; similarityReason: string })[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     // Get the target question
     const targetQuestion = await ctx.db
@@ -168,51 +236,93 @@ export const getSimilarQuestions = query({
 
     if (!targetQuestion) return [];
 
-    // Find similar questions
-    let allQuestions = await ctx.db.query("questions").collect();
+    const results: Array<{ question: Doc<"questions">; score: number; reason: string }> = [];
 
-    // Filter out the target question
-    allQuestions = allQuestions.filter(q => q.questionId !== args.questionId);
+    // 1. Get questions with same subtopic (highest priority)
+    const sameSubtopicResults = await ctx.db
+      .query("questions")
+      .withIndex("by_subtopic", (q) => q.eq("subtopic", targetQuestion.subtopic))
+      .take(limit * 2); // Get more to filter
+    
+    const sameSubtopic = sameSubtopicResults.filter(q => q.questionId !== args.questionId).slice(0, limit);
 
-    // Calculate similarity scores
-    const scoredQuestions = allQuestions.map(q => {
-      let score = 0;
+    for (const q of sameSubtopic) {
+      let score = 5; // Base score for same subtopic
       
-      // Same subtopic (highest weight)
-      if (q.subtopic === targetQuestion.subtopic) score += 5;
-      
-      // Same chapter (medium weight)
-      if (q.chapter === targetQuestion.chapter) score += 3;
-      
-      // Same subject (low weight)
-      if (q.subject === targetQuestion.subject) score += 1;
-
       // Recency boost (within 5 years)
       if (Math.abs(q.year - targetQuestion.year) <= 5) score *= 1.2;
-
+      
       // Same difficulty level (marks)
       if (q.marks === targetQuestion.marks) score *= 1.1;
 
-      return { question: q, score };
-    });
+      results.push({ question: q, score, reason: 'Same subtopic' });
+    }
 
-    // Sort by score and take top N
-    scoredQuestions.sort((a, b) => {
+    // 2. If we need more results, get questions from same chapter
+    if (results.length < limit) {
+      const sameChapterResults = await ctx.db
+        .query("questions")
+        .withIndex("by_chapter", (q) => q.eq("chapter", targetQuestion.chapter))
+        .take((limit - results.length) * 2); // Get more to filter
+      
+      const sameChapter = sameChapterResults
+        .filter(q => q.questionId !== args.questionId && q.subtopic !== targetQuestion.subtopic)
+        .slice(0, limit - results.length);
+
+      for (const q of sameChapter) {
+        let score = 3; // Base score for same chapter
+        
+        // Recency boost
+        if (Math.abs(q.year - targetQuestion.year) <= 5) score *= 1.2;
+        
+        // Same difficulty level
+        if (q.marks === targetQuestion.marks) score *= 1.1;
+
+        results.push({ question: q, score, reason: 'Same chapter' });
+      }
+    }
+
+    // 3. If we still need more results, get questions from same subject
+    if (results.length < limit) {
+      const sameSubjectResults = await ctx.db
+        .query("questions")
+        .withIndex("by_subject", (q) => q.eq("subject", targetQuestion.subject))
+        .take((limit - results.length) * 2); // Get more to filter
+      
+      const sameSubject = sameSubjectResults
+        .filter(q => q.questionId !== args.questionId && 
+                    q.subtopic !== targetQuestion.subtopic && 
+                    q.chapter !== targetQuestion.chapter)
+        .slice(0, limit - results.length);
+
+      for (const q of sameSubject) {
+        let score = 1; // Base score for same subject
+        
+        // Recency boost
+        if (Math.abs(q.year - targetQuestion.year) <= 5) score *= 1.2;
+        
+        // Same difficulty level
+        if (q.marks === targetQuestion.marks) score *= 1.1;
+
+        results.push({ question: q, score, reason: 'Same subject' });
+      }
+    }
+
+    // Sort by score and return
+    results.sort((a, b) => {
       if (a.score !== b.score) return b.score - a.score;
       return b.question.year - a.question.year;
     });
 
-    return scoredQuestions
-      .slice(0, limit)
-      .map(item => ({
-        ...item.question,
-        similarityScore: item.score,
-        similarityReason: 
-          item.question.subtopic === targetQuestion.subtopic ? 'Same subtopic' :
-          item.question.chapter === targetQuestion.chapter ? 'Same chapter' :
-          item.question.subject === targetQuestion.subject ? 'Same subject' :
-          'Related topic'
-      }));
+    const result = results.slice(0, limit).map(item => ({
+      ...item.question,
+      similarityScore: item.score,
+      similarityReason: item.reason
+    }));
+
+    // Cache the result
+    setCachedResult(cacheKey, result);
+    return result;
   },
 });
 
@@ -224,6 +334,13 @@ export const findSimilarQuestionsWithVectors = query({
   },
   handler: async (ctx, args) => {
     const limit = args.limit || 5;
+    const cacheKey = `vector_similar_${args.questionId}_${limit}`;
+    
+    // Check cache first
+    const cached = getCachedResult<(Doc<"questions"> & { similarityScore: number; similarityReason: string })[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     // Get the target question
     const targetQuestion = await ctx.db
@@ -236,34 +353,45 @@ export const findSimilarQuestionsWithVectors = query({
       return [];
     }
 
-    // Get all questions to calculate similarity
-    const allQuestions = await ctx.db.query("questions").collect();
+    // For now, fall back to loading questions with embeddings and calculating similarity
+    // TODO: Implement proper vector search when available
+    const questionsWithEmbeddings = await ctx.db
+      .query("questions")
+      .take(limit * 10); // Get more questions to find similar ones
+    
+    const similarQuestions = questionsWithEmbeddings.filter((q) => 
+      q.questionId !== args.questionId && 
+      q.vector_embedding && 
+      q.vector_embedding.length > 0
+    );
 
-    // Calculate similarity scores using cosine similarity
-    const scoredQuestions = allQuestions
-      .filter(q => q.questionId !== args.questionId && q.vector_embedding && q.vector_embedding.length > 0)
-      .map(q => {
-        const similarity = cosineSimilarity(targetQuestion.vector_embedding!, q.vector_embedding!);
-        
-        // Bonus for same subject
-        let finalScore = similarity;
-        if (q.subject === targetQuestion.subject) {
-          finalScore += 0.1; // Add 0.1 bonus for same subject
-        }
-        
-        return { question: q, similarity, finalScore };
-      });
+    // Calculate final scores with subject bonus
+    const scoredQuestions = similarQuestions.map((q) => {
+      const similarity = cosineSimilarity(targetQuestion.vector_embedding!, q.vector_embedding!);
+      
+      // Bonus for same subject
+      let finalScore = similarity;
+      if (q.subject === targetQuestion.subject) {
+        finalScore += 0.1; // Add 0.1 bonus for same subject
+      }
+      
+      return { question: q, similarity, finalScore };
+    });
 
-    // Sort by similarity score and take top N
+    // Sort by final score and take top N
     scoredQuestions.sort((a, b) => b.finalScore - a.finalScore);
 
-    return scoredQuestions
+    const result = scoredQuestions
       .slice(0, limit)
-      .map(item => ({
+      .map((item) => ({
         ...item.question,
         similarityScore: Math.round((item.similarity + 0.5) * 100) / 100, // Round to 2 decimals and scale 0-1
         similarityReason: 'Vector similarity'
       }));
+
+    // Cache the result
+    setCachedResult(cacheKey, result);
+    return result;
   },
 });
 
@@ -280,20 +408,44 @@ export const getSubjects = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const questions = await ctx.db.query("questions").collect();
+    // Get limited counts instead of loading all data
+    const questions = await ctx.db.query("questions").take(1000);
     const subjects = await ctx.db.query("subjects").collect();
     const chapters = await ctx.db.query("chapters").collect();
     const subtopics = await ctx.db.query("subtopics").collect();
+    
+    const totalQuestions = questions.length;
+    const totalSubjects = subjects.length;
+    const totalChapters = chapters.length;
+    const totalSubtopics = subtopics.length;
 
-    const years = questions.map(q => q.year);
-    const earliestYear = years.length > 0 ? Math.min(...years) : null;
-    const latestYear = years.length > 0 ? Math.max(...years) : null;
+    // For year range, we need to get min/max years efficiently
+    // Use indexed query to get year range
+    const yearQuery = await ctx.db
+      .query("questions")
+      .withIndex("by_year")
+      .take(1); // Get one record to check if we have data
+    
+    let earliestYear: number | null = null;
+    let latestYear: number | null = null;
+
+    if (yearQuery.length > 0) {
+      // Get min and max years using indexed queries
+      const allYears = await ctx.db
+        .query("questions")
+        .withIndex("by_year")
+        .collect();
+      
+      const years = allYears.map(q => q.year);
+      earliestYear = years.length > 0 ? Math.min(...years) : null;
+      latestYear = years.length > 0 ? Math.max(...years) : null;
+    }
 
     return {
-      totalQuestions: questions.length,
-      totalSubjects: subjects.length,
-      totalChapters: chapters.length,
-      totalSubtopics: subtopics.length,
+      totalQuestions,
+      totalSubjects,
+      totalChapters,
+      totalSubtopics,
       earliestYear,
       latestYear,
     };
@@ -582,10 +734,10 @@ export const getGraphData = query({
     subjectFilter: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit || 100;
+    const limit = Math.min(args.limit || 100, 200); // Cap at 200 to prevent excessive data loading
     const excludeDiagrams = args.excludeDiagrams || false;
     
-    // Fetch all metadata
+    // Fetch all metadata efficiently
     let subjects = await ctx.db.query("subjects").collect();
     let chapters = await ctx.db.query("chapters").collect();
     let subtopics = await ctx.db.query("subtopics").collect();
@@ -597,16 +749,23 @@ export const getGraphData = query({
       subtopics = subtopics.filter(st => st.subject === args.subjectFilter);
     }
     
-    // Get sample questions (limited)
-    let questions = await ctx.db.query("questions").take(limit);
+    // Get sample questions efficiently using indexed queries
+    let questions: Doc<"questions">[] = [];
+    
+    if (args.subjectFilter) {
+      // Use subject index for better performance
+      questions = await ctx.db
+        .query("questions")
+        .withIndex("by_subject", (q) => q.eq("subject", args.subjectFilter!))
+        .take(limit);
+    } else {
+      // Use limited query without loading all data
+      questions = await ctx.db.query("questions").take(limit);
+    }
     
     // Apply filters
     if (excludeDiagrams) {
       questions = questions.filter(q => !q.has_diagram);
-    }
-    
-    if (args.subjectFilter) {
-      questions = questions.filter(q => q.subject === args.subjectFilter);
     }
     
     // Build nodes and links
@@ -698,7 +857,8 @@ export const getGraphData = query({
 export const getDetailedStats = query({
   args: {},
   handler: async (ctx) => {
-    const questions = await ctx.db.query("questions").collect();
+    // Limit the number of questions we process to prevent excessive bandwidth usage
+    const questions = await ctx.db.query("questions").take(10000); // Limit to 10k questions
 
     // Year distribution
     const yearMap = new Map<string, number>();
@@ -760,7 +920,7 @@ export const getDetailedStats = query({
       .sort((a, b) => b.count - a.count)
       .slice(0, 15); // Top 15 subtopics
 
-    // Subject comparison data
+    // Subject comparison data (limited to prevent excessive data processing)
     const subjectComparisonMap = new Map<string, number>();
     const allSubjectsSet = new Set<string>();
     const allSubtopicsSet = new Set<string>();
@@ -816,4 +976,3 @@ export const getDetailedStats = query({
     };
   },
 });
-

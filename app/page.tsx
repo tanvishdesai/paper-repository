@@ -8,8 +8,10 @@ import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { BackgroundPaths } from "@/components/ui/background-paths";
 import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
 import NavigationDock from "@/components/navigation-dock";
+import DisplayCards from "@/components/ui/display-cards";
+import { CyberneticBentoGrid } from "@/components/ui/cybernetic-bento-grid";
 import { subjects } from "@/lib/subjects";
-import { BookOpen, Target, TrendingUp, Zap, Brain, Trophy, CheckCircle2, Users, Star, ArrowRight, BarChart3, Filter,  Cpu, Database, Network, Settings, Calculator, Layers,  Sparkles, ChevronDown } from "lucide-react";
+import { BookOpen, Target,  Zap, Brain, Trophy, CheckCircle2, Users, Star, ArrowRight, BarChart3, Filter,  Cpu, Database, Network, Settings, Calculator, Layers,  Sparkles, ChevronDown } from "lucide-react";
 // Icon mapping for subjects
 const iconMap: Record<string, React.ElementType> = {
   "⚡": Zap,
@@ -80,50 +82,79 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <p className="text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-light">
-                  Comprehensive question bank with <span className="text-foreground font-semibold">thousands of previous year questions</span> across all Computer Science subjects.
-                </p>
-                <p className="text-lg md:text-xl text-primary font-semibold mt-3 flex items-center justify-center gap-2">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Practice smart, excel in your exams.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4 justify-center pt-4">
-              <Button size="lg" asChild className="h-14 px-8 bg-primary text-primary-foreground text-lg font-semibold">
-                <Link href="#subjects" className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  Start Practicing Now
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="h-14 px-8 border-2 text-lg">
-                <Link href="#features" className="flex items-center gap-2">
-                  Learn More
-                  <ChevronDown className="h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-16 max-w-5xl mx-auto">
-              {[
-                { value: '10+', label: 'CS Subjects', icon: BookOpen },
-                { value: '1000+', label: 'Questions', icon: Target },
-                { value: '24/7', label: 'Access', icon: Zap },
-                { value: '10K+', label: 'Students', icon: Users },
-              ].map((stat, index) => (
-                <Card key={index} className="text-center p-6 border-border bg-card">
-                  <stat.icon className="h-8 w-8 mx-auto mb-3 text-primary" />
-                  <div className="text-4xl md:text-5xl font-black text-primary mb-2">
-                    {stat.value}
+            {/* Hero Content with Side-by-Side Layout */}
+            <div className="grid lg:grid-cols-2 gap-12 items-center pt-8">
+              {/* Left Side - Text Content */}
+              <div className="space-y-8 text-left">
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-lg md:text-2xl text-muted-foreground leading-relaxed font-light">
+                      Comprehensive question bank with <span className="text-foreground font-semibold">thousands of previous year questions</span> across all Computer Science subjects.
+                    </p>
+                    <p className="text-lg md:text-xl text-primary font-semibold mt-3 flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5" />
+                      Practice smart, excel in your exams.
+                    </p>
                   </div>
-                  <div className="text-sm font-medium text-muted-foreground">{stat.label}</div>
-                </Card>
-              ))}
+                </div>
+
+                <div className="flex flex-wrap gap-4">
+                  <Button size="lg" asChild className="h-14 px-8 bg-primary text-primary-foreground text-lg font-semibold">
+                    <Link href="#subjects" className="flex items-center gap-2">
+                      <Zap className="h-5 w-5" />
+                      Start Practicing Now
+                      <ArrowRight className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" asChild className="h-14 px-8 border-2 text-lg">
+                    <Link href="#features" className="flex items-center gap-2">
+                      Learn More
+                      <ChevronDown className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Right Side - Animated Cards */}
+              <div className="flex justify-center lg:justify-end">
+                <DisplayCards 
+                  animationInterval={4000}
+                  cards={[
+                    {
+                      icon: <BookOpen className="size-4 text-red-300" />,
+                      title: "10+",
+                      description: "CS Subjects",
+                      date: "Comprehensive",
+                      iconClassName: "text-red-500",
+                      titleClassName: "text-red-500",
+                    },
+                    {
+                      icon: <Target className="size-4 text-blue-300" />,
+                      title: "1000+",
+                      description: "Questions",
+                      date: "Practice ready",
+                      iconClassName: "text-red-500",
+                      titleClassName: "text-red-500",
+                    },
+                    {
+                      icon: <Zap className="size-4 text-blue-300" />,
+                      title: "24/7",
+                      description: "Access",
+                      date: "Always available",
+                      iconClassName: "text-red-500",
+                      titleClassName: "text-red-500",
+                    },
+                    {
+                      icon: <Users className="size-4 text-blue-300" />,
+                      title: "10K+",
+                      description: "Students",
+                      date: "Trusted by many",
+                      iconClassName: "text-red-500",
+                      titleClassName: "text-red-500",
+                    },
+                  ]} 
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -201,290 +232,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* AI Features Showcase */}
-      <section className="container mx-auto px-4 py-24 bg-muted/20">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
-                  <Brain className="h-4 w-4" />
-                  <span>AI-Powered Learning</span>
-                </div>
-                <h3 className="text-3xl md:text-5xl font-black text-foreground">
-                  Get Instant Help with
-                  <br />
-                  <span className="text-primary">Any Question</span>
-                </h3>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Stuck on a tough problem? Our AI assistant powered by Google Gemini is here to help.
-                  Get step-by-step explanations, hints, and detailed solutions instantly.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                    <span className="text-sm font-bold text-primary">1</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-1">Click the AI Help Button</h4>
-                    <p className="text-sm text-muted-foreground">Find the brain icon next to any question</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                    <span className="text-sm font-bold text-primary">2</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-1">Ask Your Question</h4>
-                    <p className="text-sm text-muted-foreground">Describe what you need help with or ask for a hint</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                    <span className="text-sm font-bold text-primary">3</span>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-1">Get Instant Response</h4>
-                    <p className="text-sm text-muted-foreground">Receive detailed explanations and step-by-step solutions</p>
-                  </div>
-                </div>
-              </div>
-
-              <Button size="lg" asChild className="bg-primary text-primary-foreground">
-                <Link href="#subjects" className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Try AI Help Now
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="relative">
-              <Card className="border-border bg-card shadow-2xl">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Brain className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">AI Assistant</CardTitle>
-                      <CardDescription>Ready to help with your GATE questions</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm">
-                      <strong>You:</strong> Can you explain the concept of dynamic programming with an example?
-                    </p>
-                  </div>
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                    <p className="text-sm text-primary">
-                      <strong>AI:</strong> Dynamic programming is a method for solving complex problems by breaking them down into simpler subproblems... Heres an example with the Fibonacci sequence...
-                    </p>
-                  </div>
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-sm">
-                      <strong>You:</strong> How does this apply to GATE questions?
-                    </p>
-                  </div>
-                  <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                    <p className="text-sm text-primary">
-                      <strong>AI:</strong> In GATE, DP questions often appear in algorithms and data structures. Common patterns include knapsack problems, longest common subsequence, matrix chain multiplication...
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Analytics Showcase */}
-      <section className="container mx-auto px-4 py-24">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Advanced Analytics</span>
-                </div>
-                <h3 className="text-3xl md:text-5xl font-black text-foreground">
-                  Understand Your
-                  <br />
-                  <span className="text-primary">Progress & Patterns</span>
-                </h3>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Dive deep into comprehensive statistics and visualizations. Track question patterns,
-                  analyze subject distribution, and identify your strengths and weaknesses across all GATE subjects.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    <span className="font-semibold text-sm">Year-wise Analysis</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Target className="h-5 w-5 text-primary" />
-                    <span className="font-semibold text-sm">Subject Distribution</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    <span className="font-semibold text-sm">Marks Breakdown</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Brain className="h-5 w-5 text-primary" />
-                    <span className="font-semibold text-sm">Subtopic Insights</span>
-                  </div>
-                </div>
-              </div>
-
-              <Button size="lg" variant="outline" asChild className="border-2">
-                <Link href="/stats" className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  View Analytics Dashboard
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="relative">
-              <Card className="border-border bg-card shadow-2xl">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <BarChart3 className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Analytics Dashboard</CardTitle>
-                        <CardDescription>Comprehensive GATE statistics</CardDescription>
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href="/stats">View Full →</Link>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-muted/50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-primary">1000+</div>
-                      <div className="text-xs text-muted-foreground">Questions</div>
-                    </div>
-                    <div className="bg-muted/50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-primary">18</div>
-                      <div className="text-xs text-muted-foreground">Years</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Algorithms</span>
-                      <span className="font-semibold">245</span>
-                    </div>
-                    <div className="w-full bg-muted/50 rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full" style={{width: '35%'}}></div>
-                    </div>
-
-                    <div className="flex justify-between text-sm">
-                      <span>Data Structures</span>
-                      <span className="font-semibold">198</span>
-                    </div>
-                    <div className="w-full bg-muted/50 rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full" style={{width: '28%'}}></div>
-                    </div>
-
-                    <div className="flex justify-between text-sm">
-                      <span>Operating Systems</span>
-                      <span className="font-semibold">156</span>
-                    </div>
-                    <div className="w-full bg-muted/50 rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full" style={{width: '22%'}}></div>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>Updated with latest 2025 questions</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Filtering Showcase */}
-      <section className="container mx-auto px-4 py-24 bg-muted/20">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 space-y-5">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
-              <Filter className="h-4 w-4" />
-              <span>Smart Filtering</span>
-            </div>
-            <h3 className="text-3xl md:text-5xl font-black text-foreground">
-              Find Exactly What You Need
-            </h3>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto font-light">
-              Powerful filtering options to customize your practice sessions and focus on specific topics,
-              difficulty levels, and question types.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-6">
-            <Card className="text-center p-6 border-border bg-card">
-              <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <Target className="h-8 w-8 text-primary" />
-              </div>
-              <h4 className="font-bold text-foreground mb-2">Year Filter</h4>
-              <p className="text-sm text-muted-foreground">Practice questions from specific years (2007-2025) or focus on recent papers</p>
-            </Card>
-
-            <Card className="text-center p-6 border-border bg-card">
-              <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
-              <h4 className="font-bold text-foreground mb-2">Marks Filter</h4>
-              <p className="text-sm text-muted-foreground">Filter by question marks (1-5 marks) to match exam patterns and difficulty</p>
-            </Card>
-
-            <Card className="text-center p-6 border-border bg-card">
-              <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <Brain className="h-8 w-8 text-primary" />
-              </div>
-              <h4 className="font-bold text-foreground mb-2">Subtopic Filter</h4>
-              <p className="text-sm text-muted-foreground">Drill down to specific subtopics like Binary Trees, Process Scheduling, or TCP/IP</p>
-            </Card>
-
-            <Card className="text-center p-6 border-border bg-card">
-              <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-primary" />
-              </div>
-              <h4 className="font-bold text-foreground mb-2">Search</h4>
-              <p className="text-sm text-muted-foreground">Instant search through question text and subtopics to find relevant problems</p>
-            </Card>
-          </div>
-
-          <div className="text-center mt-12">
-            <Button size="lg" asChild className="bg-primary text-primary-foreground">
-              <Link href="#subjects" className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Start Filtering Questions
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+      {/* Cybernetic Features Showcase */}
+      <section className="py-24">
+        <CyberneticBentoGrid />
       </section>
 
       {/* Subjects Section */}

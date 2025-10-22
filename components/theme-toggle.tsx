@@ -19,10 +19,8 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
 
   if (!mounted) {
     return (
-      <div className={cn("flex w-16 h-8 p-1 rounded-full bg-gray-200 border border-gray-300", className)}>
-        <div className="flex justify-center items-center w-6 h-6 rounded-full bg-white">
-          <Sun className="w-4 h-4 text-gray-700" strokeWidth={1.5} />
-        </div>
+      <div className={cn("flex items-center justify-center w-full h-full cursor-pointer", className)}>
+        <Sun className="w-5 h-5 text-neutral-600 dark:text-neutral-300" strokeWidth={1.5} />
       </div>
     )
   }
@@ -31,59 +29,17 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
 
   return (
     <div
-      className={cn(
-        "flex w-16 h-8 p-1 rounded-full cursor-pointer transition-all duration-300",
-        isDark
-          ? "bg-zinc-950 border border-zinc-800"
-          : "bg-white border border-zinc-200",
-        className
-      )}
+      className={cn("flex items-center justify-center w-full h-full cursor-pointer transition-colors duration-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-full", className)}
       onClick={() => setTheme(isDark ? "light" : "dark")}
       role="button"
       tabIndex={0}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
-      <div className="flex justify-between items-center w-full">
-        <div
-          className={cn(
-            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
-            isDark
-              ? "transform translate-x-0 bg-zinc-800"
-              : "transform translate-x-8 bg-gray-200"
-          )}
-        >
-          {isDark ? (
-            <Moon
-              className="w-4 h-4 text-white"
-              strokeWidth={1.5}
-            />
-          ) : (
-            <Sun
-              className="w-4 h-4 text-gray-700"
-              strokeWidth={1.5}
-            />
-          )}
-        </div>
-        <div
-          className={cn(
-            "flex justify-center items-center w-6 h-6 rounded-full transition-transform duration-300",
-            isDark
-              ? "bg-transparent"
-              : "transform -translate-x-8"
-          )}
-        >
-          {isDark ? (
-            <Sun
-              className="w-4 h-4 text-gray-500"
-              strokeWidth={1.5}
-            />
-          ) : (
-            <Moon
-              className="w-4 h-4 text-black"
-              strokeWidth={1.5}
-            />
-          )}
-        </div>
-      </div>
+      {isDark ? (
+        <Moon className="w-5 h-5 text-neutral-300" strokeWidth={1.5} />
+      ) : (
+        <Sun className="w-5 h-5 text-neutral-600" strokeWidth={1.5} />
+      )}
     </div>
   )
 }

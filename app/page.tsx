@@ -1,278 +1,130 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useUser, SignInButton, UserButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
+import { BackgroundPaths } from "@/components/ui/background-paths";
+import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
+import NavigationDock from "@/components/navigation-dock";
 import { subjects } from "@/lib/subjects";
-import { BookOpen, Target, TrendingUp, Key, Code, ChevronDown, Sparkles, Zap, Brain, Trophy, CheckCircle2, Users, Star, ArrowRight, BarChart3, Filter, Menu, X, GraduationCap } from "lucide-react";
+import { BookOpen, Target, TrendingUp, Zap, Brain, Trophy, CheckCircle2, Users, Star, ArrowRight, BarChart3, Filter,  Cpu, Database, Network, Settings, Calculator, Layers,  Sparkles, ChevronDown } from "lucide-react";
+// Icon mapping for subjects
+const iconMap: Record<string, React.ElementType> = {
+  "⚡": Zap,
+  "🗂️": Layers,
+  "💻": Cpu,
+  "🗄️": Database,
+  "🌐": Network,
+  "🖥️": Settings,
+  "📐": Calculator,
+  "🔧": Settings,
+  "⚙️": Settings,
+  "📊": BarChart3,
+  "🎯": Target,
+};
+
+// Shortened names mapping
+const shortNameMap: Record<string, string> = {
+  "Computer Organization and Architecture": "COA",
+  "General Aptitude": "GA",
+  "Programming and Data Structures": "DS",
+  "Computer Networks": "CN",
+  "Operating System": "OS",
+  "Theory of Computation": "TOC",
+  "Compiler Design": "CD",
+  "Digital Logic": "DL",
+  "Engineering Mathematics": "EM",
+
+};
+
+// Transform subjects to timeline data
+const transformSubjectsToTimeline = () => {
+  return subjects.map((subject, index) => ({
+    id: index + 1,
+    title: shortNameMap[subject.name] || subject.name,
+    fullTitle: subject.name, // Keep full title for tooltips/cards
+    date: `Subject ${index + 1}`,
+    content: subject.description,
+    category: "Computer Science",
+    icon: iconMap[subject.icon] || BookOpen,
+    relatedIds: [], // Could add related subjects later
+    status: "completed" as const,
+    energy: Math.floor(60 + Math.random() * 40), // Random energy between 60-100
+    fileName: subject.fileName,
+  }));
+};
+
 export default function Home() {
-  const { isSignedIn } = useUser();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
+  const timelineData = transformSubjectsToTimeline();
+
+  const handleNavigate = (subjectSlug: string) => {
+    router.push(`/questions/${encodeURIComponent(subjectSlug)}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-lg">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative h-11 w-11 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                <GraduationCap className="h-6 w-6 text-primary-foreground" />
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </div>
-              <div className="flex flex-col">
-                <h1 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">
-                  GATE
-                </h1>
-                <span className="text-xs text-muted-foreground font-medium -mt-1">
-                  Question Bank
-                </span>
-              </div>
-            </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="relative px-4 py-2 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-              >
-                <Link href="/explore" className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                  <span>Explore Graph</span>
-                </Link>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="relative px-4 py-2 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-              >
-                <Link href="/stats" className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                  <span>Analytics</span>
-                </Link>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="relative px-4 py-2 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-              >
-                <Link href="/api-docs" className="flex items-center gap-2">
-                  <Code className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                  <span>API Docs</span>
-                </Link>
-              </Button>
-              {isSignedIn && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="relative px-4 py-2 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200 group"
-                >
-                  <Link href="/api-keys" className="flex items-center gap-2">
-                    <Key className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-                    <span>API Keys</span>
-                  </Link>
-                </Button>
-              )}
-            </nav>
-
-            {/* Desktop Auth & Theme */}
-            <div className="hidden md:flex items-center gap-3">
-              {isSignedIn ? (
-                <div className="flex items-center gap-3">
-                  <div className="h-6 w-px bg-border"></div>
-                  <UserButton
-                    afterSignOutUrl="/"
-                    appearance={{
-                      elements: {
-                        avatarBox: "h-9 w-9"
-                      }
-                    }}
-                  />
-                </div>
-              ) : (
-                <SignInButton mode="modal">
-                  <Button
-                    size="sm"
-                    className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 px-6"
-                  >
-                    Sign In
-                  </Button>
-                </SignInButton>
-              )}
-              <div className="h-6 w-px bg-border"></div>
-              <ThemeToggle />
-            </div>
-
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="md:hidden p-2 hover:bg-primary/10 transition-colors duration-200"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
-
-          {/* Mobile Navigation Menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
-              <div className="px-4 py-4 space-y-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="w-full justify-start px-4 py-3 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Link href="/stats" className="flex items-center gap-3">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>Analytics</span>
-                  </Link>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="w-full justify-start px-4 py-3 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Link href="/api-docs" className="flex items-center gap-3">
-                    <Code className="h-4 w-4" />
-                    <span>API Docs</span>
-                  </Link>
-                </Button>
-                {isSignedIn && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="w-full justify-start px-4 py-3 text-sm font-medium hover:bg-primary/10 hover:text-primary transition-all duration-200"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Link href="/api-keys" className="flex items-center gap-3">
-                      <Key className="h-4 w-4" />
-                      <span>API Keys</span>
-                    </Link>
-                  </Button>
-                )}
-
-                <div className="border-t border-border/50 pt-3 mt-4">
-                  <div className="flex items-center justify-between">
-                    {isSignedIn ? (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-muted-foreground">Account</span>
-                        <UserButton
-                          afterSignOutUrl="/"
-                          appearance={{
-                            elements: {
-                              avatarBox: "h-8 w-8"
-                            }
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <SignInButton mode="modal">
-                        <Button
-                          size="sm"
-                          className="bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          Sign In
-                        </Button>
-                      </SignInButton>
-                    )}
-                    <ThemeToggle />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 md:py-32">
-        <div className="max-w-6xl mx-auto text-center space-y-10">
-          {/* Badge */}
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
-              <Star className="h-4 w-4 fill-current" />
-              <span>Trusted by 10,000+ students</span>
+      <section className="relative w-full overflow-hidden">
+        <BackgroundPaths title="Master Your GATE Journey" />
+        <div className="container mx-auto px-4 py-20 md:py-32">
+          <div className="max-w-6xl mx-auto text-center space-y-10">
+            {/* Badge */}
+            <div className="flex justify-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
+                <Star className="h-4 w-4 fill-current" />
+                <span>Trusted by 10,000+ students</span>
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-6">
-            <h2 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.1]">
-              <span className="text-foreground">
-                Master Your
-              </span>
-              <br />
-              <span className="text-primary">
-                GATE
-              </span>
-              <br />
-              <span className="text-foreground">
-                Preparation
-              </span>
-            </h2>
-            <div>
-              <p className="text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-light">
-                Comprehensive question bank with <span className="text-foreground font-semibold">thousands of previous year questions</span> across all Computer Science subjects.
-              </p>
-              <p className="text-lg md:text-xl text-primary font-semibold mt-3 flex items-center justify-center gap-2">
-                <CheckCircle2 className="h-5 w-5" />
-                Practice smart, excel in your exams.
-              </p>
+            <div className="space-y-6">
+              <div>
+                <p className="text-lg md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed font-light">
+                  Comprehensive question bank with <span className="text-foreground font-semibold">thousands of previous year questions</span> across all Computer Science subjects.
+                </p>
+                <p className="text-lg md:text-xl text-primary font-semibold mt-3 flex items-center justify-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Practice smart, excel in your exams.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap gap-4 justify-center pt-4">
-            <Button size="lg" asChild className="h-14 px-8 bg-primary text-primary-foreground text-lg font-semibold">
-              <Link href="#subjects" className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                Start Practicing Now
-                <ArrowRight className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="h-14 px-8 border-2 text-lg">
-              <Link href="#features" className="flex items-center gap-2">
-                Learn More
-                <ChevronDown className="h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
+            <div className="flex flex-wrap gap-4 justify-center pt-4">
+              <Button size="lg" asChild className="h-14 px-8 bg-primary text-primary-foreground text-lg font-semibold">
+                <Link href="#subjects" className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Start Practicing Now
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild className="h-14 px-8 border-2 text-lg">
+                <Link href="#features" className="flex items-center gap-2">
+                  Learn More
+                  <ChevronDown className="h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-16 max-w-5xl mx-auto">
-            {[
-              { value: '10+', label: 'CS Subjects', icon: BookOpen },
-              { value: '1000+', label: 'Questions', icon: Target },
-              { value: '24/7', label: 'Access', icon: Zap },
-              { value: '10K+', label: 'Students', icon: Users },
-            ].map((stat, index) => (
-              <Card key={index} className="text-center p-6 border-border bg-card">
-                <stat.icon className="h-8 w-8 mx-auto mb-3 text-primary" />
-                <div className="text-4xl md:text-5xl font-black text-primary mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-sm font-medium text-muted-foreground">{stat.label}</div>
-              </Card>
-            ))}
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-16 max-w-5xl mx-auto">
+              {[
+                { value: '10+', label: 'CS Subjects', icon: BookOpen },
+                { value: '1000+', label: 'Questions', icon: Target },
+                { value: '24/7', label: 'Access', icon: Zap },
+                { value: '10K+', label: 'Students', icon: Users },
+              ].map((stat, index) => (
+                <Card key={index} className="text-center p-6 border-border bg-card">
+                  <stat.icon className="h-8 w-8 mx-auto mb-3 text-primary" />
+                  <div className="text-4xl md:text-5xl font-black text-primary mb-2">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm font-medium text-muted-foreground">{stat.label}</div>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -313,27 +165,37 @@ export default function Home() {
                 highlights: ['Performance tracking', 'Visual analytics', 'Pattern analysis', 'Progress insights']
               }
             ].map((feature, index) => (
-              <Card key={index} className="h-full border-border bg-card">
-                <CardHeader className="text-center space-y-6 p-8">
-                  <div className="w-20 h-20 mx-auto bg-primary rounded-3xl flex items-center justify-center">
-                    <feature.icon className="h-10 w-10 text-primary-foreground" />
-                  </div>
-                  <CardTitle className="text-2xl font-bold text-foreground">
-                    {feature.title}
-                  </CardTitle>
-                  <CardDescription className="text-base leading-relaxed text-muted-foreground mb-6">
-                    {feature.description}
-                  </CardDescription>
-                  <div className="space-y-2">
-                    {feature.highlights.map((highlight, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-primary">
-                        <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                        <span>{highlight}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardHeader>
-              </Card>
+              <div key={index} className="relative h-full">
+                <GlowingEffect
+                  spread={40}
+                  glow={true}
+                  disabled={false}
+                  proximity={80}
+                  inactiveZone={0.01}
+                  borderWidth={2}
+                />
+                <Card className="h-full border-border bg-card relative">
+                  <CardHeader className="text-center space-y-6 p-8">
+                    <div className="w-20 h-20 mx-auto bg-primary rounded-3xl flex items-center justify-center">
+                      <feature.icon className="h-10 w-10 text-primary-foreground" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-foreground">
+                      {feature.title}
+                    </CardTitle>
+                    <CardDescription className="text-base leading-relaxed text-muted-foreground mb-6">
+                      {feature.description}
+                    </CardDescription>
+                    <div className="space-y-2">
+                      {feature.highlights.map((highlight, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-primary">
+                          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                          <span>{highlight}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardHeader>
+                </Card>
+              </div>
             ))}
           </div>
         </div>
@@ -626,7 +488,7 @@ export default function Home() {
       </section>
 
       {/* Subjects Section */}
-      <section id="subjects" className="container mx-auto px-4 py-24">
+      <section id="subjects" className="py-24">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20 space-y-5">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary mb-4">
@@ -637,39 +499,11 @@ export default function Home() {
               Choose Your Subject
             </h3>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto font-light">
-              Select from our comprehensive collection of Computer Science subjects
+              Explore our comprehensive collection of Computer Science subjects in an interactive timeline
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {subjects.map((subject) => (
-              <Link
-                key={subject.name}
-                href={`/questions/${encodeURIComponent(subject.fileName.replace('.json', ''))}`}
-              >
-                <Card className="h-full border-border bg-card cursor-pointer">
-                  <CardHeader className="text-center pb-4">
-                    <div className="w-24 h-24 mx-auto mb-4 bg-primary/10 rounded-3xl flex items-center justify-center text-5xl">
-                      {subject.icon}
-                    </div>
-                    <CardTitle className="text-xl font-bold text-foreground mb-2">
-                      {subject.name}
-                    </CardTitle>
-                    <CardDescription className="text-sm leading-relaxed">
-                      {subject.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Button
-                      variant="outline"
-                      className="w-full border-border font-semibold"
-                    >
-                      <Brain className="h-4 w-4 mr-2" />
-                      View Questions
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+          <div className="h-screen w-full">
+            <RadialOrbitalTimeline timelineData={timelineData} onNavigate={handleNavigate} />
           </div>
         </div>
       </section>
@@ -740,6 +574,9 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Navigation Dock */}
+      <NavigationDock />
     </div>
   );
 }

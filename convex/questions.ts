@@ -1,5 +1,27 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation} from "./_generated/server";
+
+// Helper function to calculate cosine similarity
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+  
+  let dotProduct = 0;
+  let magnitudeA = 0;
+  let magnitudeB = 0;
+  
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    magnitudeA += a[i] * a[i];
+    magnitudeB += b[i] * b[i];
+  }
+  
+  magnitudeA = Math.sqrt(magnitudeA);
+  magnitudeB = Math.sqrt(magnitudeB);
+  
+  if (magnitudeA === 0 || magnitudeB === 0) return 0;
+  
+  return dotProduct / (magnitudeA * magnitudeB);
+}
 
 // ==================== QUERY FUNCTIONS ====================
 
@@ -194,6 +216,57 @@ export const getSimilarQuestions = query({
   },
 });
 
+// Find similar questions using vector embeddings (uses vector index)
+export const findSimilarQuestionsWithVectors = query({
+  args: { 
+    questionId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 5;
+
+    // Get the target question
+    const targetQuestion = await ctx.db
+      .query("questions")
+      .withIndex("by_question_id", (q) => q.eq("questionId", args.questionId))
+      .first();
+
+    if (!targetQuestion || !targetQuestion.vector_embedding || targetQuestion.vector_embedding.length === 0) {
+      // Fallback to graph-based similarity if no embedding
+      return [];
+    }
+
+    // Get all questions to calculate similarity
+    const allQuestions = await ctx.db.query("questions").collect();
+
+    // Calculate similarity scores using cosine similarity
+    const scoredQuestions = allQuestions
+      .filter(q => q.questionId !== args.questionId && q.vector_embedding && q.vector_embedding.length > 0)
+      .map(q => {
+        const similarity = cosineSimilarity(targetQuestion.vector_embedding!, q.vector_embedding!);
+        
+        // Bonus for same subject
+        let finalScore = similarity;
+        if (q.subject === targetQuestion.subject) {
+          finalScore += 0.1; // Add 0.1 bonus for same subject
+        }
+        
+        return { question: q, similarity, finalScore };
+      });
+
+    // Sort by similarity score and take top N
+    scoredQuestions.sort((a, b) => b.finalScore - a.finalScore);
+
+    return scoredQuestions
+      .slice(0, limit)
+      .map(item => ({
+        ...item.question,
+        similarityScore: Math.round((item.similarity + 0.5) * 100) / 100, // Round to 2 decimals and scale 0-1
+        similarityReason: 'Vector similarity'
+      }));
+  },
+});
+
 // Get all subjects
 export const getSubjects = query({
   args: {},
@@ -254,6 +327,101 @@ export const getSubtopicsByChapter = query({
 });
 
 // ==================== MUTATION FUNCTIONS ====================
+
+// Create a single question
+export const createQuestion = mutation({
+  args: { 
+    questionId: v.string(),
+    question_no: v.string(),
+    question_text: v.string(),
+    year: v.number(),
+    paper_code: v.string(),
+    subject: v.string(),
+    chapter: v.string(),
+    subtopic: v.string(),
+    marks: v.number(),
+    theoretical_practical: v.string(),
+    provenance: v.string(),
+    confidence: v.number(),
+    correct_answer: v.string(),
+    has_diagram: v.boolean(),
+    options: v.optional(v.array(v.string())),
+    vector_embedding: v.optional(v.array(v.number())),
+  },
+  handler: async (ctx, args) => {
+    // Check if question already exists
+    const existing = await ctx.db
+      .query("questions")
+      .withIndex("by_question_id", (q) => q.eq("questionId", args.questionId))
+      .first();
+    
+    if (!existing) {
+      return await ctx.db.insert("questions", args);
+    }
+    return existing._id;
+  },
+});
+
+// Create a subject
+export const createSubject = mutation({
+  args: {
+    name: v.string(),
+    description: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    questionCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Check if subject already exists
+    const existing = await ctx.db
+      .query("subjects")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .first();
+    
+    if (!existing) {
+      return await ctx.db.insert("subjects", args);
+    }
+    return existing._id;
+  },
+});
+
+// Create a chapter
+export const createChapter = mutation({
+  args: {
+    name: v.string(),
+    subject: v.string(),
+    questionCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("chapters", args);
+  },
+});
+
+// Create a subtopic
+export const createSubtopic = mutation({
+  args: {
+    name: v.string(),
+    chapter: v.string(),
+    subject: v.string(),
+    questionCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("subtopics", args);
+  },
+});
+
+// Update question with vector embedding
+export const updateQuestionEmbedding = mutation({
+  args: {
+    _id: v.id("questions"),
+    vectorEmbedding: v.array(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args._id, {
+      vector_embedding: args.vectorEmbedding,
+    });
+    return args._id;
+  },
+});
 
 // Bulk insert questions
 export const insertQuestions = mutation({

@@ -52,6 +52,7 @@ export default defineSchema({
     correct_answer: v.string(), // The correct answer
     has_diagram: v.boolean(), // Whether question contains a diagram
     options: v.optional(v.array(v.string())), // Multiple choice options (null for NAT questions)
+    vector_embedding: v.optional(v.array(v.number())), // Vector embedding for similarity search (empty initially)
   })
     .index("by_question_id", ["questionId"])
     .index("by_subject", ["subject"])
@@ -60,6 +61,10 @@ export default defineSchema({
     .index("by_chapter", ["chapter"])
     .index("by_subtopic", ["subtopic"])
     .index("by_year_paper", ["year", "paper_code"])
+    .vectorIndex("by_embedding", {
+      vectorField: "vector_embedding",
+      dimensions: 1536, // OpenAI embedding dimensions
+    })
     .searchIndex("search_question_text", {
       searchField: "question_text",
       filterFields: ["subject", "year", "chapter", "subtopic"],

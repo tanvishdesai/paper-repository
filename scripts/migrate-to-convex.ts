@@ -1,35 +1,44 @@
 /**
- * Migration Script: Import JSON Data to Convex
+ * Migrate Questions Data to Convex
  * 
- * This script reads all JSON files from public/data and imports them into Convex database.
- * Run with: npx ts-node scripts/migrate-to-convex.ts
+ * This script:
+ * 1. Reads all JSON files from public/data/
+ * 2. Validates data structure against the schema
+ * 3. Creates proper relationships between subjects, chapters, subtopics, and questions
+ * 4. Initializes empty vector_embedding field for each question
+ * 5. Migrates all data to Convex database
+ * 
+ * Run with: npm run migrate
  */
 
 import { config } from "dotenv";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 // Load environment variables from .env.local
-config({ path: '.env.local' });
+config({ path: ".env.local" });
 
 // Get Convex URL from environment
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 
 if (!CONVEX_URL) {
-  console.error('❌ Error: NEXT_PUBLIC_CONVEX_URL environment variable is not set');
+  console.error(
+    "❌ Error: NEXT_PUBLIC_CONVEX_URL environment variable is not set"
+  );
   process.exit(1);
 }
 
 const convex = new ConvexHttpClient(CONVEX_URL);
 
-interface Question {
+// Type definitions
+interface QuestionData {
   year: number;
   paper_code: string;
   question_no: string;
   question_text: string;
-  options: string[] | null;
+  options?: string[];
   subject: string;
   chapter: string;
   subtopic: string;
@@ -41,265 +50,371 @@ interface Question {
   has_diagram: boolean;
 }
 
-// Generate unique question ID
-function generateQuestionId(q: Question): string {
-  return `${q.year}-${q.paper_code}-${q.question_no}`.replace(/\s+/g, '-');
+interface ProcessedQuestion extends QuestionData {
+  questionId: string;
+  vector_embedding?: number[];
 }
 
-// Read all JSON files from data directory
-function readAllDataFiles(dataDir: string): Question[] {
-  const allQuestions: Question[] = [];
-  
-  const files = fs.readdirSync(dataDir).filter(f => f.endsWith('.json'));
-  
-  console.log(`📁 Found ${files.length} JSON files in ${dataDir}`);
-  
-  for (const file of files) {
-    const filePath = path.join(dataDir, file);
-    console.log(`📖 Reading ${file}...`);
-    
-    try {
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      const data = JSON.parse(fileContent);
-      
-      if (Array.isArray(data)) {
-        allQuestions.push(...data);
-        console.log(`  ✅ Loaded ${data.length} questions from ${file}`);
-      } else {
-        console.log(`  ⚠️  Warning: ${file} does not contain an array`);
+interface SubjectData {
+  name: string;
+  description?: string;
+  icon?: string;
+  questionCount: number;
+}
+
+interface ChapterData {
+  name: string;
+  subject: string;
+  questionCount: number;
+}
+
+interface SubtopicData {
+  name: string;
+  chapter: string;
+  subject: string;
+  questionCount: number;
+}
+
+class DataMigrator {
+  private dataDir = path.join(process.cwd(), "public/data");
+  private subjects = new Map<string, SubjectData>();
+  private chapters = new Map<string, ChapterData>();
+  private subtopics = new Map<string, SubtopicData>();
+  private questions: ProcessedQuestion[] = [];
+  private errors: string[] = [];
+
+  /**
+   * Get all JSON files from the data directory
+   */
+  private getDataFiles(): string[] {
+    const files = fs.readdirSync(this.dataDir);
+    return files
+      .filter((file) => file.endsWith("-data.json"))
+      .map((file) => path.join(this.dataDir, file));
+  }
+
+  /**
+   * Generate a unique question ID
+   */
+  private generateQuestionId(
+    year: number,
+    paperCode: string,
+    questionNo: string
+  ): string {
+    return `${year}-${paperCode}-${questionNo}`.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  /**
+   * Generate a unique key for chapters (subject + chapter name)
+   */
+  private generateChapterKey(subject: string, chapter: string): string {
+    return `${subject}|${chapter}`;
+  }
+
+  /**
+   * Generate a unique key for subtopics (subject + chapter + subtopic name)
+   */
+  private generateSubtopicKey(
+    subject: string,
+    chapter: string,
+    subtopic: string
+  ): string {
+    return `${subject}|${chapter}|${subtopic}`;
+  }
+
+  /**
+   * Validate a single question against the schema
+   */
+  private validateQuestion(question: unknown, fileIndex: number): QuestionData | null {
+    const errors: string[] = [];
+
+    // Type guard to check if question is an object
+    if (typeof question !== 'object' || question === null) {
+      this.errors.push(`File ${fileIndex}: Question is not an object`);
+      return null;
+    }
+
+    const q = question as Record<string, unknown>;
+
+    // Required fields check
+    const requiredFields = [
+      "year",
+      "paper_code",
+      "question_no",
+      "question_text",
+      "subject",
+      "chapter",
+      "subtopic",
+      "theoretical_practical",
+      "marks",
+      "provenance",
+      "confidence",
+      "correct_answer",
+      "has_diagram",
+    ];
+
+    for (const field of requiredFields) {
+      if (q[field] === undefined || q[field] === null) {
+        errors.push(`Missing required field: ${field}`);
       }
-    } catch (error) {
-      console.error(`  ❌ Error reading ${file}:`, error);
     }
-  }
-  
-  return allQuestions;
-}
 
-// Calculate statistics from questions
-function calculateStatistics(questions: Question[]) {
-  const subjectsMap = new Map<string, number>();
-  const chaptersMap = new Map<string, { subject: string; count: number }>();
-  const subtopicsMap = new Map<string, { chapter: string; subject: string; count: number }>();
-  
-  for (const q of questions) {
-    // Count subjects
-    subjectsMap.set(q.subject, (subjectsMap.get(q.subject) || 0) + 1);
-    
-    // Count chapters
-    const chapterKey = `${q.subject}::${q.chapter}`;
-    if (!chaptersMap.has(chapterKey)) {
-      chaptersMap.set(chapterKey, { subject: q.subject, count: 0 });
-    }
-    chaptersMap.get(chapterKey)!.count++;
-    
-    // Count subtopics
-    const subtopicKey = `${q.subject}::${q.chapter}::${q.subtopic}`;
-    if (!subtopicsMap.has(subtopicKey)) {
-      subtopicsMap.set(subtopicKey, { 
-        chapter: q.chapter, 
-        subject: q.subject, 
-        count: 0 
-      });
-    }
-    subtopicsMap.get(subtopicKey)!.count++;
-  }
-  
-  return { subjectsMap, chaptersMap, subtopicsMap };
-}
+    // Type validation
+    if (typeof q.year !== "number") errors.push("year must be a number");
+    if (typeof q.marks !== "number") errors.push("marks must be a number");
+    if (typeof q.confidence !== "number")
+      errors.push("confidence must be a number");
+    if (typeof q.has_diagram !== "boolean")
+      errors.push("has_diagram must be a boolean");
+    if (typeof q.question_text !== "string")
+      errors.push("question_text must be a string");
 
-// Subject metadata
-const subjectMetadata: Record<string, { description: string; icon: string }> = {
-  "Algorithms": {
-    description: "Algorithmic techniques, complexity analysis, and data structures",
-    icon: "🔄"
-  },
-  "Compiler Design": {
-    description: "Lexical analysis, parsing, code generation, and optimization",
-    icon: "🔨"
-  },
-  "Computer Networks": {
-    description: "Network protocols, layers, routing, and communication",
-    icon: "🌐"
-  },
-  "Computer Organization and Architecture": {
-    description: "CPU design, memory hierarchy, and system architecture",
-    icon: "💾"
-  },
-  "Databases": {
-    description: "SQL, NoSQL, transactions, normalization, and indexing",
-    icon: "🗄️"
-  },
-  "Digital Logic": {
-    description: "Boolean algebra, logic gates, and circuit design",
-    icon: "⚡"
-  },
-  "Engineering Mathematics": {
-    description: "Discrete mathematics, probability, and linear algebra",
-    icon: "📐"
-  },
-  "General Aptitude": {
-    description: "Quantitative and verbal reasoning questions",
-    icon: "🧠"
-  },
-  "Operating System": {
-    description: "Process management, memory, file systems, and concurrency",
-    icon: "💻"
-  },
-  "Programming and Data Structures": {
-    description: "Programming concepts, data structures, and algorithms",
-    icon: "📝"
-  },
-  "Theory of Computation": {
-    description: "Automata, formal languages, and computability",
-    icon: "🤖"
-  },
-};
+    // Validate theoretical_practical enum
+    if (!["theoretical", "practical"].includes(q.theoretical_practical as string)) {
+      errors.push(
+        'theoretical_practical must be "theoretical" or "practical"'
+      );
+    }
 
-async function main() {
-  console.log('🚀 Starting migration to Convex...\n');
-  
-  // Read data files
-  const dataDir = path.join(process.cwd(), 'public', 'data');
-  const questions = readAllDataFiles(dataDir);
-  
-  console.log(`\n📊 Total questions loaded: ${questions.length}\n`);
-  
-  if (questions.length === 0) {
-    console.error('❌ No questions found. Exiting.');
-    process.exit(1);
-  }
-  
-  // Calculate statistics
-  console.log('📈 Calculating statistics...');
-  const { subjectsMap, chaptersMap, subtopicsMap } = calculateStatistics(questions);
-  
-  console.log(`  - ${subjectsMap.size} unique subjects`);
-  console.log(`  - ${chaptersMap.size} unique chapters`);
-  console.log(`  - ${subtopicsMap.size} unique subtopics\n`);
-  
-  // Step 1: Insert subjects
-  console.log('📚 Inserting subjects...');
-  for (const [subjectName, count] of subjectsMap.entries()) {
-    const metadata = subjectMetadata[subjectName] || {
-      description: `Questions in ${subjectName}`,
-      icon: '📚'
-    };
-    
-    try {
-      await convex.mutation(api.questions.upsertSubject, {
-        name: subjectName,
-        questionCount: count,
-        description: metadata.description,
-        icon: metadata.icon,
-      });
-      console.log(`  ✅ ${subjectName}: ${count} questions`);
-    } catch (error) {
-      console.error(`  ❌ Error inserting subject ${subjectName}:`, error);
-    }
-  }
-  
-  // Step 2: Insert chapters
-  console.log('\n📖 Inserting chapters...');
-  for (const [key, data] of chaptersMap.entries()) {
-    const chapterName = key.split('::')[1];
-    
-    try {
-      await convex.mutation(api.questions.upsertChapter, {
-        name: chapterName,
-        subject: data.subject,
-        questionCount: data.count,
-      });
-      console.log(`  ✅ ${chapterName} (${data.subject}): ${data.count} questions`);
-    } catch (error) {
-      console.error(`  ❌ Error inserting chapter ${chapterName}:`, error);
-    }
-  }
-  
-  // Step 3: Insert subtopics
-  console.log('\n📑 Inserting subtopics...');
-  let subtopicCount = 0;
-  for (const [key, data] of subtopicsMap.entries()) {
-    const subtopicName = key.split('::')[2];
-    
-    try {
-      await convex.mutation(api.questions.upsertSubtopic, {
-        name: subtopicName,
-        chapter: data.chapter,
-        subject: data.subject,
-        questionCount: data.count,
-      });
-      subtopicCount++;
-      if (subtopicCount % 10 === 0) {
-        console.log(`  ✅ Inserted ${subtopicCount}/${subtopicsMap.size} subtopics...`);
+    // Validate options if provided
+    if (q.options) {
+      if (!Array.isArray(q.options)) {
+        errors.push("options must be an array");
+      } else if (q.options.length > 0) {
+        if (!q.options.every((opt: unknown) => typeof opt === "string")) {
+          errors.push("all options must be strings");
+        }
       }
-    } catch (error) {
-      console.error(`  ❌ Error inserting subtopic ${subtopicName}:`, error);
+    }
+
+    if (errors.length > 0) {
+      this.errors.push(
+        `File ${fileIndex}, Question ${q.question_no}: ${errors.join(", ")}`
+      );
+      return null;
+    }
+
+    return question as QuestionData;
+  }
+
+  /**
+   * Read and process all data files
+   */
+  async readDataFiles(): Promise<void> {
+    const files = this.getDataFiles();
+    console.log(`\n📂 Found ${files.length} data files to process\n`);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileName = path.basename(file);
+      console.log(`📖 Processing ${fileName}...`);
+
+      try {
+        const data = JSON.parse(fs.readFileSync(file, "utf-8"));
+
+        if (!Array.isArray(data)) {
+          throw new Error(`File ${fileName} does not contain an array`);
+        }
+
+        let validCount = 0;
+        for (const questionData of data) {
+          const validated = this.validateQuestion(questionData, i);
+          if (validated) {
+            const processedQuestion: ProcessedQuestion = {
+              ...validated,
+              questionId: this.generateQuestionId(
+                validated.year,
+                validated.paper_code,
+                validated.question_no
+              ),
+              vector_embedding: [], // Initialize empty for future use
+            };
+
+            this.questions.push(processedQuestion);
+
+            // Track subjects
+            if (!this.subjects.has(validated.subject)) {
+              this.subjects.set(validated.subject, {
+                name: validated.subject,
+                questionCount: 0,
+              });
+            }
+            (this.subjects.get(validated.subject) as SubjectData).questionCount++;
+
+            // Track chapters
+            const chapterKey = this.generateChapterKey(
+              validated.subject,
+              validated.chapter
+            );
+            if (!this.chapters.has(chapterKey)) {
+              this.chapters.set(chapterKey, {
+                name: validated.chapter,
+                subject: validated.subject,
+                questionCount: 0,
+              });
+            }
+            (this.chapters.get(chapterKey) as ChapterData).questionCount++;
+
+            // Track subtopics
+            const subtopicKey = this.generateSubtopicKey(
+              validated.subject,
+              validated.chapter,
+              validated.subtopic
+            );
+            if (!this.subtopics.has(subtopicKey)) {
+              this.subtopics.set(subtopicKey, {
+                name: validated.subtopic,
+                chapter: validated.chapter,
+                subject: validated.subject,
+                questionCount: 0,
+              });
+            }
+            (this.subtopics.get(subtopicKey) as SubtopicData).questionCount++;
+
+            validCount++;
+          }
+        }
+
+        console.log(`  ✅ Valid: ${validCount}/${data.length}`);
+      } catch (error) {
+        console.error(`  ❌ Error reading file: ${error}`);
+      }
+    }
+
+    console.log("\n📊 Data Summary:");
+    console.log(`  Total questions read: ${this.questions.length}`);
+    console.log(`  Total subjects: ${this.subjects.size}`);
+    console.log(`  Total chapters: ${this.chapters.size}`);
+    console.log(`  Total subtopics: ${this.subtopics.size}`);
+
+    if (this.errors.length > 0) {
+      console.log(`\n⚠️  Validation Errors (${this.errors.length}):`);
+      this.errors.forEach((error) => console.log(`  - ${error}`));
     }
   }
-  console.log(`  ✅ Completed: ${subtopicCount} subtopics inserted`);
-  
-  // Step 4: Insert questions in batches
-  console.log('\n❓ Inserting questions...');
-  const BATCH_SIZE = 100; // Convex has size limits, so we batch
-  const batches = [];
-  
-  for (let i = 0; i < questions.length; i += BATCH_SIZE) {
-    batches.push(questions.slice(i, i + BATCH_SIZE));
-  }
-  
-  console.log(`  📦 Processing ${batches.length} batches of ${BATCH_SIZE} questions each`);
-  
-  let totalInserted = 0;
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    const formattedBatch = batch.map(q => ({
-      questionId: generateQuestionId(q),
-      question_no: q.question_no,
-      question_text: q.question_text,
-      year: q.year,
-      paper_code: q.paper_code,
-      subject: q.subject,
-      chapter: q.chapter,
-      subtopic: q.subtopic,
-      marks: q.marks,
-      theoretical_practical: q.theoretical_practical,
-      provenance: q.provenance,
-      confidence: q.confidence,
-      correct_answer: q.correct_answer,
-      has_diagram: q.has_diagram,
-      options: q.options || undefined, // Convert null to undefined for optional field
-    }));
-    
+
+  /**
+   * Migrate all data to Convex
+   */
+  async migrateToConvex(): Promise<void> {
+    console.log("\n🚀 Starting migration to Convex...\n");
+
     try {
-      const result = await convex.mutation(api.questions.insertQuestions, {
-        questions: formattedBatch,
-      });
-      totalInserted += result.inserted;
-      console.log(`  ✅ Batch ${i + 1}/${batches.length}: Inserted ${result.inserted} questions (Total: ${totalInserted})`);
+      // Step 1: Migrate subjects
+      console.log("📝 Migrating subjects...");
+      let subjectCount = 0;
+      for (const [, subject] of this.subjects) {
+        await convex.mutation(api.questions.createSubject, {
+          name: subject.name,
+          questionCount: subject.questionCount,
+        });
+        subjectCount++;
+      }
+      console.log(`  ✅ Created ${subjectCount} subjects\n`);
+
+      // Step 2: Migrate chapters
+      console.log("📚 Migrating chapters...");
+      let chapterCount = 0;
+      for (const [, chapter] of this.chapters) {
+        await convex.mutation(api.questions.createChapter, {
+          name: chapter.name,
+          subject: chapter.subject,
+          questionCount: chapter.questionCount,
+        });
+        chapterCount++;
+      }
+      console.log(`  ✅ Created ${chapterCount} chapters\n`);
+
+      // Step 3: Migrate subtopics
+      console.log("🔖 Migrating subtopics...");
+      let subtopicCount = 0;
+      for (const [, subtopic] of this.subtopics) {
+        await convex.mutation(api.questions.createSubtopic, {
+          name: subtopic.name,
+          chapter: subtopic.chapter,
+          subject: subtopic.subject,
+          questionCount: subtopic.questionCount,
+        });
+        subtopicCount++;
+      }
+      console.log(`  ✅ Created ${subtopicCount} subtopics\n`);
+
+      // Step 4: Migrate questions (in batches to avoid overload)
+      console.log("❓ Migrating questions...");
+      const batchSize = 100;
+      for (let i = 0; i < this.questions.length; i += batchSize) {
+        const batch = this.questions.slice(
+          i,
+          Math.min(i + batchSize, this.questions.length)
+        );
+        for (const question of batch) {
+          await convex.mutation(api.questions.createQuestion, {
+            questionId: question.questionId,
+            question_no: question.question_no,
+            question_text: question.question_text,
+            year: question.year,
+            paper_code: question.paper_code,
+            subject: question.subject,
+            chapter: question.chapter,
+            subtopic: question.subtopic,
+            marks: question.marks,
+            theoretical_practical: question.theoretical_practical,
+            provenance: question.provenance,
+            confidence: question.confidence,
+            correct_answer: question.correct_answer,
+            has_diagram: question.has_diagram,
+            options: question.options || undefined, // Convert null to undefined
+            vector_embedding: [], // Empty array, ready for embeddings
+          });
+        }
+        const progress = Math.min(i + batchSize, this.questions.length);
+        console.log(
+          `  ${Math.round((progress / this.questions.length) * 100)}% complete (${progress}/${this.questions.length})`
+        );
+      }
+      console.log(`  ✅ Created ${this.questions.length} questions\n`);
+
+      console.log("✨ Migration completed successfully!");
+      console.log("\n📊 Final Summary:");
+      console.log(`  ✅ ${subjectCount} subjects migrated`);
+      console.log(`  ✅ ${chapterCount} chapters migrated`);
+      console.log(`  ✅ ${subtopicCount} subtopics migrated`);
+      console.log(`  ✅ ${this.questions.length} questions migrated`);
     } catch (error) {
-      console.error(`  ❌ Error inserting batch ${i + 1}:`, error);
-      console.error(`     Details:`, error instanceof Error ? error.message : String(error));
+      console.error("❌ Error during migration:", error);
+      throw error;
     }
   }
-  
-  console.log(`\n✨ Migration complete!`);
-  console.log(`📊 Summary:`);
-  console.log(`  - Questions inserted: ${totalInserted}/${questions.length}`);
-  console.log(`  - Subjects: ${subjectsMap.size}`);
-  console.log(`  - Chapters: ${chaptersMap.size}`);
-  console.log(`  - Subtopics: ${subtopicsMap.size}`);
-  console.log(`\n🎉 All data has been migrated to Convex successfully!`);
+
+  /**
+   * Run the complete migration process
+   */
+  async run(): Promise<void> {
+    console.log("🔄 Starting Data Migration Process\n");
+    console.log("=====================================\n");
+
+    try {
+      await this.readDataFiles();
+      await this.migrateToConvex();
+
+      console.log("\n=====================================");
+      console.log("✨ All data migrated successfully!\n");
+    } catch (error) {
+      console.error("\n❌ Migration failed:", error);
+      process.exit(1);
+    }
+  }
 }
 
-// Run the migration
-main()
+// Run migration
+const migrator = new DataMigrator();
+migrator
+  .run()
   .then(() => {
-    console.log('\n✅ Migration script completed');
+    console.log("✅ Process completed");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n❌ Migration failed:', error);
+    console.error("❌ Process failed:", error);
     process.exit(1);
   });
-

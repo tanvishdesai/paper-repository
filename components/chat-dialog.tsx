@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -39,36 +39,7 @@ export function ChatDialog({ isOpen, onClose, question }: ChatDialogProps) {
     }
   }, [messages]);
 
-  // Initialize chat with question explanation when dialog opens
-  useEffect(() => {
-    if (isOpen && question && !isInitialized) {
-      const initialPrompt = `Look at this question and explain its solution to me like I'm a novice. Explain each term and calculation from the basics:
-
-Question: ${question.question_text}
-${question.options ? `Options: ${question.options.join(', ')}` : ''}
-Subject: ${question.subject}
-Topic: ${question.subtopic}
-Marks: ${question.marks}
-Type: ${question.theoretical_practical}
-Year: ${question.year}
-
-Please explain step by step, starting from the very basics.`;
-
-      handleSendMessage(initialPrompt, true);
-      setIsInitialized(true);
-    }
-  }, [isOpen, question, isInitialized]);
-
-  // Reset when dialog closes
-  useEffect(() => {
-    if (!isOpen) {
-      setMessages([]);
-      setIsInitialized(false);
-      setInputMessage('');
-    }
-  }, [isOpen]);
-
-  const handleSendMessage = async (message: string, isInitial: boolean = false) => {
+  const handleSendMessage = useCallback(async (message: string, isInitial: boolean = false) => {
     if (!message.trim() || isLoading) return;
 
     const userMessage: Message = {
@@ -131,7 +102,36 @@ Please explain step by step, starting from the very basics.`;
       // Focus input after sending
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  };
+  }, [isLoading, messages, question]);
+
+  // Initialize chat with question explanation when dialog opens
+  useEffect(() => {
+    if (isOpen && question && !isInitialized) {
+      const initialPrompt = `Look at this question and explain its solution to me like I'm a novice. Explain each term and calculation from the basics:
+
+Question: ${question.question_text}
+${question.options ? `Options: ${question.options.join(', ')}` : ''}
+Subject: ${question.subject}
+Topic: ${question.subtopic}
+Marks: ${question.marks}
+Type: ${question.theoretical_practical}
+Year: ${question.year}
+
+Please explain step by step, starting from the very basics.`;
+
+      handleSendMessage(initialPrompt, true);
+      setIsInitialized(true);
+    }
+  }, [isOpen, question, isInitialized, handleSendMessage]);
+
+  // Reset when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setMessages([]);
+      setIsInitialized(false);
+      setInputMessage('');
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
